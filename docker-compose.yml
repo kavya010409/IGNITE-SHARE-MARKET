@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  # 1. PostgreSQL Database Service
+  postgres:
+    image: postgres:16-alpine
+    container_name: apex_trading_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: trader_admin
+      POSTGRES_PASSWORD: SuperSecretSecurePassword123!
+      POSTGRES_DB: virtual_trading_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U trader_admin -d virtual_trading_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # 2. Redis Pub/Sub & Caching Service
+  redis:
+    image: redis:7-alpine
+    container_name: apex_trading_redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # 3. FastAPI Web Engine & Background Simulator
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: apex_trading_web
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=production
+      - DEBUG=false
+      - DATABASE_URL=postgresql+asyncpg://trader_admin:SuperSecretSecurePassword123!@postgres:5432/virtual_trading_db
+      - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY=c4f9a882e700a12b9d031eef4091a18bc9281a17950c22fa4d761bc99a803e11
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  redis_data:
