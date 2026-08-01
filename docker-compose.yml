@@ -56,6 +56,18 @@ services:
       redis:
         condition: service_healthy
 
+  # 4. React.js Vite Frontend Nginx Container
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: apex_trading_frontend
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - web
+
 volumes:
   postgres_data:
   redis_data:
