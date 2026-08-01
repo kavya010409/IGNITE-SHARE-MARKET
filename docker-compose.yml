@@ -59,8 +59,8 @@ services:
   # 4. React.js Vite Frontend Nginx Container
   frontend:
     build:
-      context: .
-      dockerfile: Dockerfile.frontend
+      context: ./frontend
+      dockerfile: Dockerfile
     container_name: apex_trading_frontend
     restart: always
     ports:
