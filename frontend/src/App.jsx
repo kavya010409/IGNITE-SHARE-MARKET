@@ -8,6 +8,10 @@ import BreakingNewsModal from './components/BreakingNewsModal';
 import NewsFeed from './components/NewsFeed';
 import Leaderboard from './components/Leaderboard';
 
+// ─── Secret Admin Hash ────────────────────────────────────────────────────────
+// Admin URL: http://localhost:3001/#ignite-admin-x9k2
+const ADMIN_HASH = '#ignite-admin-x9k2';
+
 const INITIAL_STOCKS = [
   { ticker: 'APEX', name: 'Apex Dynamics Corp', current_price: 4.50, change_percentage: 0.76 },
   { ticker: 'CRPT', name: 'Cryptonix Global Systems', current_price: 5.20, change_percentage: 0.00 },
@@ -41,13 +45,22 @@ const INITIAL_STOCKS = [
   { ticker: 'VIRT', name: 'Virtualis Gaming Interactive', current_price: 6.00, change_percentage: 0.95 },
 ];
 
-// Secret admin URL path — only accessible via /ignite-admin-x9k2
+// ─── Secret Admin URL ─────────────────────────────────────────────────────────
 const ADMIN_SECRET_PATH = '/ignite-admin-x9k2';
 
 export default function App() {
-  // ── Routing ────────────────────────────────────────────────────────────────
-  const isAdminRoute = window.location.pathname === ADMIN_SECRET_PATH;
+  // ── Hash-based admin route (works reliably in Vite SPA) ───────────────────
+  const [isAdminRoute, setIsAdminRoute] = useState(
+    window.location.hash === ADMIN_HASH
+  );
 
+  useEffect(() => {
+    const handleHashChange = () => {
+      setIsAdminRoute(window.location.hash === ADMIN_HASH);
+    };
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
   // ── Auth State ─────────────────────────────────────────────────────────────
   const [token, setToken] = useState(localStorage.getItem('apex_jwt_token') || '');
   const [traderEmail, setTraderEmail] = useState(localStorage.getItem('apex_trader_email') || '');
@@ -252,21 +265,25 @@ export default function App() {
   // ── Render: Secret Admin Route ─────────────────────────────────────────────
   if (isAdminRoute) {
     return (
-      <div class="min-h-screen bg-[#0b0e14] p-6">
+      <div class="min-h-screen bg-[#080b10] p-6">
         <div class="max-w-5xl mx-auto">
-          <div class="flex items-center justify-between mb-6 bg-[#151922] border border-[#232936] rounded-2xl px-5 py-3">
+          {/* Distinct Admin Header — clearly NOT the user view */}
+          <div class="flex items-center justify-between mb-6 bg-[#1a0a0a] border border-rose-900/40 rounded-2xl px-5 py-3">
             <div class="flex items-center gap-3">
-              <div class="w-8 h-8 rounded-lg bg-rose-500/20 flex items-center justify-center border border-rose-500/30">
-                <span class="text-sm">🔒</span>
+              <div class="w-9 h-9 rounded-xl bg-rose-500/20 flex items-center justify-center border border-rose-500/40 shadow-lg shadow-rose-500/10">
+                <span class="text-base">🔐</span>
               </div>
               <div>
-                <h1 class="text-sm font-bold text-white">Admin Control Panel</h1>
-                <p class="text-[10px] text-gray-500">Secure Access • IGNITE Exchange</p>
+                <h1 class="text-sm font-extrabold text-rose-400 tracking-wide uppercase">IGNITE Admin Console</h1>
+                <p class="text-[10px] text-rose-900 font-mono">Restricted Access — Authorised Personnel Only</p>
               </div>
             </div>
-            <a href="/" class="text-xs text-gray-500 hover:text-white transition-colors px-3 py-1.5 rounded-lg border border-[#232936] hover:border-[#2962ff]/30">
+            <button
+              onClick={() => { window.location.hash = ''; window.location.href = '/'; }}
+              class="text-xs text-gray-500 hover:text-white transition-colors px-3 py-1.5 rounded-lg border border-[#232936] hover:border-rose-500/30"
+            >
               ← Back to Exchange
-            </a>
+            </button>
           </div>
           <AdminPanel showToast={showToast} onNewsDispatched={handleNewsReceived} />
         </div>
