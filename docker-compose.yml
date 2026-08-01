@@ -38,7 +38,7 @@ services:
   # 3. FastAPI Web Engine & Background Simulator
   web:
     build:
-      context: .
+      context: ./backend
       dockerfile: Dockerfile
     container_name: apex_trading_web
     restart: always
