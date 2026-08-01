@@ -3,6 +3,7 @@ import Watchlist from './components/Watchlist';
 import StockChart from './components/StockChart';
 import OrderForm from './components/OrderForm';
 import PortfolioLedger from './components/PortfolioLedger';
+import AdminPanel from './components/AdminPanel';
 import BreakingNewsModal from './components/BreakingNewsModal';
 import NewsFeed from './components/NewsFeed';
 import Leaderboard from './components/Leaderboard';
@@ -265,6 +266,35 @@ export default function App() {
 
   const activeStock = stocks.find(s => s.ticker === selectedTicker) || stocks[0];
 
+
+  // ── Render: Secret Admin Route (/admin) ────────────────────────────────────
+  const isAdminRoute = window.location.pathname === '/admin' || window.location.pathname === '/admin/';
+  if (isAdminRoute) {
+    return (
+      <div class="min-h-screen bg-[#080b10] p-6">
+        <div class="max-w-5xl mx-auto">
+          <div class="flex items-center justify-between mb-6 bg-[#1a0a0a] border border-rose-900/40 rounded-2xl px-5 py-3">
+            <div class="flex items-center gap-3">
+              <div class="w-9 h-9 rounded-xl bg-rose-500/20 flex items-center justify-center border border-rose-500/40 shadow-lg shadow-rose-500/10">
+                <span class="text-base">🔐</span>
+              </div>
+              <div>
+                <h1 class="text-sm font-extrabold text-rose-400 tracking-wide uppercase">IGNITE Admin Console</h1>
+                <p class="text-[10px] text-rose-900 font-mono">Restricted Access — Authorised Personnel Only</p>
+              </div>
+            </div>
+            <button
+              onClick={() => { window.location.href = '/'; }}
+              class="text-xs text-gray-500 hover:text-white transition-colors px-3 py-1.5 rounded-lg border border-[#232936] hover:border-rose-500/30"
+            >
+              ← Back to Exchange
+            </button>
+          </div>
+          <AdminPanel showToast={showToast} onNewsDispatched={handleNewsReceived} />
+        </div>
+      </div>
+    );
+  }
 
   // ── Render: Auth Screen ────────────────────────────────────────────────────
   if (view === 'trader-auth') {
