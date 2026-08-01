@@ -268,7 +268,7 @@ export default function App() {
 
 
   // ── Render: Secret Admin Route (/admin) ────────────────────────────────────
-  const isAdminRoute = window.location.pathname === '/admin' || window.location.pathname === '/admin/';
+  const isAdminRoute = window.location.pathname.toLowerCase().includes('admin');
   if (isAdminRoute) {
     return (
       <div class="min-h-screen bg-[#080b10] p-6">
@@ -291,6 +291,15 @@ export default function App() {
             </button>
           </div>
           <AdminPanel showToast={showToast} onNewsDispatched={handleNewsReceived} />
+        </div>
+
+        {/* Toasts */}
+        <div class="fixed bottom-5 right-5 z-50 flex flex-col gap-2">
+          {toasts.map(t => (
+            <div key={t.id} class={`px-4 py-2.5 rounded-xl shadow-xl text-xs font-semibold text-white ${
+              t.type === 'success' ? 'bg-emerald-500' : t.type === 'error' ? 'bg-rose-500' : 'bg-[#2962ff]'
+            }`}>{t.message}</div>
+          ))}
         </div>
       </div>
     );
