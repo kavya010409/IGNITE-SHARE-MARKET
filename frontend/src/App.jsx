@@ -273,6 +273,10 @@ export default function App() {
   const handleLogoClick = (e) => {
     if (e) {
       e.preventDefault();
+      e.stopPropagation();
+    }
+    if (window.getSelection) {
+      try { window.getSelection().removeAllRanges(); } catch (_) {}
     }
     // Check native click detail (detail === 3 is native triple click) or manual count
     const newCount = logoClickCount + 1;
@@ -296,6 +300,7 @@ export default function App() {
           {/* Admin Redirect Link - Placed inside the main form container card at the top right as a link badge */}
           <div class="absolute top-4 right-4">
             <button
+              type="button"
               onClick={() => {
                 sessionStorage.setItem('ignite_admin_session', '');
                 window.location.href = ADMIN_PAGE;
@@ -308,17 +313,24 @@ export default function App() {
           </div>
           {/* Logo — Triple click to go to Admin */}
           <div class="text-center mb-7 select-none">
-            <div
+            <button
+              type="button"
               onClick={handleLogoClick}
-              onMouseDown={(e) => e.preventDefault()}
-              class="w-12 h-12 rounded-xl bg-gradient-to-tr from-[#2962ff] to-indigo-500 flex items-center justify-center mx-auto mb-3 shadow-lg shadow-[#2962ff]/30 cursor-pointer select-none"
+              class="w-12 h-12 rounded-xl bg-gradient-to-tr from-[#2962ff] to-indigo-500 flex items-center justify-center mx-auto mb-3 shadow-lg shadow-[#2962ff]/30 cursor-pointer border-0 outline-none select-none block"
               title="Triple click for Admin"
             >
               <svg class="w-7 h-7 text-white pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
               </svg>
-            </div>
-            <h1 onClick={handleLogoClick} onMouseDown={(e) => e.preventDefault()} class="text-xl font-extrabold text-white tracking-wide cursor-pointer select-none">IGNITE EXCHANGE</h1>
+            </button>
+            <button
+              type="button"
+              onClick={handleLogoClick}
+              onMouseDown={(e) => e.preventDefault()}
+              class="text-xl font-extrabold text-white tracking-wide cursor-pointer border-0 bg-transparent p-0 outline-none select-none block mx-auto"
+            >
+              IGNITE EXCHANGE
+            </button>
             <p class="text-xs text-gray-500 mt-1">Virtual Stock Market Terminal</p>
           </div>
 
