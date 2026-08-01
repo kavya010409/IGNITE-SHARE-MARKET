@@ -10,11 +10,12 @@ export default function AuthScreen({ onLoginSuccess }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    setLoading(true);
+    setLoading(false);
 
     const endpoint = mode === 'register' ? '/api/auth/register' : '/api/auth/login';
 
     try {
+      setLoading(true);
       const resp = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -28,25 +29,22 @@ export default function AuthScreen({ onLoginSuccess }) {
         return;
       }
 
-      if (resp.status === 400 || resp.status === 401) {
-        setError(data.detail || 'Invalid login credentials.');
-        setLoading(false);
-        return;
+      // Hard Validation Check: Block entry on 401, 409 or any non-OK status. Clear password field.
+      setPassword('');
+      if (resp.status === 409) {
+        setError('This email address is already registered. Please sign in instead.');
+      } else if (resp.status === 401) {
+        setError('Invalid email address or password. Access Denied.');
+      } else {
+        setError(data.detail || 'Authentication failed. Please verify credentials and try again.');
       }
-
-      // Fallback for demo static mode
-      onLoginSuccess(`demo_token_${email}`, email, 20000.00);
-
     } catch (err) {
-      // Offline fallback demo mode
-      onLoginSuccess(`demo_token_${email}`, email, 20000.00);
+      // Security Constraint: Disable client-side mock login bypasses. Reject if API server is offline.
+      setPassword('');
+      setError('Secure API Server unreachable. Offline fallback bypass blocked.');
+    } finally {
+      setLoading(false);
     }
-  };
-
-  const fillDemo = () => {
-    setEmail('trader_demo@example.com');
-    setPassword('Password123!');
-    setError('');
   };
 
   return (
@@ -136,12 +134,6 @@ export default function AuthScreen({ onLoginSuccess }) {
             {loading ? 'Authenticating...' : mode === 'register' ? 'Create Account & Get 20,000 IG' : 'Sign In to Portfolio'}
           </button>
         </form>
-
-        <div class="mt-6 text-center">
-          <button onClick={fillDemo} class="text-[11px] text-gray-500 hover:text-[#2962ff] transition-colors">
-            Click here to auto-fill quick demo credentials
-          </button>
-        </div>
       </div>
     </div>
   );
