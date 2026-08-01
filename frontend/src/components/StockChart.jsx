@@ -45,15 +45,16 @@ export default function StockChart({ ticker, currentPrice, livePrice }) {
 
   // Append live price tick to chart in real-time
   useEffect(() => {
-    if (!livePrice) return;
+    if (!livePrice || !livePrice.price) return;
     setHistoryData(prev => {
       if (!prev.length) return prev;
       const last = prev[prev.length - 1];
-      // Only append if price actually changed
-      if (last && parseFloat(last.closing_price) === parseFloat(livePrice)) return prev;
+      // Only skip if both time and price are exactly matches of last (highly unlikely with timestamp)
+      if (last && parseFloat(last.closing_price) === parseFloat(livePrice.price) && last.recorded_at === new Date(livePrice.time).toISOString()) return prev;
+      
       const updated = [...prev, {
-        closing_price: parseFloat(livePrice),
-        recorded_at: new Date().toISOString(),
+        closing_price: parseFloat(livePrice.price),
+        recorded_at: new Date(livePrice.time).toISOString(),
       }];
       // Keep latest 120 points
       return updated.length > 120 ? updated.slice(updated.length - 120) : updated;

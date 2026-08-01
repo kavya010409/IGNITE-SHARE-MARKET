@@ -477,7 +477,11 @@ export default function App() {
                 </div>
 
                 {rightPanelTab === 'chart' ? (
-                  <StockChart ticker={activeStock?.ticker || 'APEX'} currentPrice={activeStock?.current_price || 5} livePrice={activeStock?.current_price} />
+                  <StockChart 
+                    ticker={activeStock?.ticker || 'APEX'} 
+                    currentPrice={activeStock?.current_price || 5} 
+                    livePrice={{ price: activeStock?.current_price, time: Date.now() }} 
+                  />
                 ) : (
                   <OrderForm stock={activeStock} cashBalance={cashBalance} portfolio={portfolio} onTradeSuccess={handleTradeSuccess} showToast={showToast} />
                 )}
