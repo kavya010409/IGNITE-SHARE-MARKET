@@ -8,6 +8,7 @@ import PortfolioLedger from './components/PortfolioLedger';
 import AdminPanel from './components/AdminPanel';
 import BreakingNewsModal from './components/BreakingNewsModal';
 import NewsFeed from './components/NewsFeed';
+import Leaderboard from './components/Leaderboard';
 
 const INITIAL_STOCKS = [
   { ticker: 'APEX', name: 'Apex Dynamics Corp', current_price: 4.50, change_percentage: 0.76 },
@@ -279,6 +280,10 @@ export default function App() {
             onQuickSell={handleQuickSell}
             showToast={showToast}
           />
+        )}
+
+        {activeTab === 'leaderboard' && (
+          <Leaderboard />
         )}
 
         {activeTab === 'admin' && (
