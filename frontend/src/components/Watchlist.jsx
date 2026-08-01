@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-export default function Watchlist({ stocks, selectedTicker, onSelectStock }) {
+export default function Watchlist({ stocks, selectedTicker, onSelectStock, isConnected }) {
   const [search, setSearch] = useState('');
 
   const filteredStocks = stocks.filter(
@@ -19,7 +19,9 @@ export default function Watchlist({ stocks, selectedTicker, onSelectStock }) {
               {stocks.length} Active Stocks
             </span>
           </h2>
-          <p class="text-xs text-gray-400 mt-0.5">Real-time tick updates powered by Redis Pub/Sub</p>
+          <p class="text-xs text-gray-400 mt-0.5">
+            {isConnected ? '🟢 Live WebSocket — prices update every 15s' : '🟡 Connecting to market feed...'}
+          </p>
         </div>
         <div class="relative w-48 sm:w-64">
           <input
