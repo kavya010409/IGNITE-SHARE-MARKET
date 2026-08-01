@@ -7,8 +7,8 @@ import BreakingNewsModal from './components/BreakingNewsModal';
 import NewsFeed from './components/NewsFeed';
 import Leaderboard from './components/Leaderboard';
 
-// Admin is a completely separate page — /ignite-ctrl-9k2m.html
-const ADMIN_PAGE = '/ignite-ctrl-9k2m.html';
+// Admin page URL
+const ADMIN_PAGE = '/admin';
 
 const INITIAL_STOCKS = [
   { ticker: 'APEX', name: 'Apex Dynamics Corp', current_price: 4.50, change_percentage: 0.76 },
@@ -266,71 +266,19 @@ export default function App() {
   const activeStock = stocks.find(s => s.ticker === selectedTicker) || stocks[0];
 
 
-  // ── Triple-click logo for Admin Access ─────────────────────────────────────
-  const [logoClickCount, setLogoClickCount] = useState(0);
-  const logoClickTimer = useRef(null);
-
-  const handleLogoClick = (e) => {
-    if (e) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-    if (window.getSelection) {
-      try { window.getSelection().removeAllRanges(); } catch (_) {}
-    }
-    // Check native click detail (detail === 3 is native triple click) or manual count
-    const newCount = logoClickCount + 1;
-    setLogoClickCount(newCount);
-    if (logoClickTimer.current) clearTimeout(logoClickTimer.current);
-
-    if ((e && e.detail >= 3) || newCount >= 3) {
-      setLogoClickCount(0);
-      sessionStorage.setItem('ignite_admin_session', '');
-      window.location.href = ADMIN_PAGE;
-      return;
-    }
-    logoClickTimer.current = setTimeout(() => setLogoClickCount(0), 1000);
-  };
-
   // ── Render: Auth Screen ────────────────────────────────────────────────────
   if (view === 'trader-auth') {
     return (
       <div class="min-h-screen flex items-center justify-center p-4 bg-[#0b0e14]">
-        <div class="w-full max-w-sm bg-[#151922] border border-[#232936] rounded-2xl p-8 shadow-2xl relative">
-          {/* Admin Redirect Link - Placed inside the main form container card at the top right as a link badge */}
-          <div class="absolute top-4 right-4">
-            <button
-              type="button"
-              onClick={() => {
-                sessionStorage.setItem('ignite_admin_session', '');
-                window.location.href = ADMIN_PAGE;
-              }}
-              class="px-2.5 py-1 rounded-lg bg-rose-950/40 hover:bg-rose-900/50 border border-rose-900/50 hover:border-rose-500/40 text-rose-400 text-[10px] font-bold font-mono transition-all flex items-center gap-1"
-              title="Go to Admin Console"
-            >
-              <span>🔒</span> Admin
-            </button>
-          </div>
-          {/* Logo — Triple click to go to Admin */}
-          <div class="text-center mb-7 select-none">
-            <button
-              type="button"
-              onClick={handleLogoClick}
-              class="w-12 h-12 rounded-xl bg-gradient-to-tr from-[#2962ff] to-indigo-500 flex items-center justify-center mx-auto mb-3 shadow-lg shadow-[#2962ff]/30 cursor-pointer border-0 outline-none select-none block"
-              title="Triple click for Admin"
-            >
-              <svg class="w-7 h-7 text-white pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div class="w-full max-w-sm bg-[#151922] border border-[#232936] rounded-2xl p-8 shadow-2xl">
+          {/* Logo */}
+          <div class="text-center mb-7">
+            <div class="w-12 h-12 rounded-xl bg-gradient-to-tr from-[#2962ff] to-indigo-500 flex items-center justify-center mx-auto mb-3 shadow-lg shadow-[#2962ff]/30">
+              <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
               </svg>
-            </button>
-            <button
-              type="button"
-              onClick={handleLogoClick}
-              onMouseDown={(e) => e.preventDefault()}
-              class="text-xl font-extrabold text-white tracking-wide cursor-pointer border-0 bg-transparent p-0 outline-none select-none block mx-auto"
-            >
-              IGNITE EXCHANGE
-            </button>
+            </div>
+            <h1 class="text-xl font-extrabold text-white tracking-wide">IGNITE EXCHANGE</h1>
             <p class="text-xs text-gray-500 mt-1">Virtual Stock Market Terminal</p>
           </div>
 
