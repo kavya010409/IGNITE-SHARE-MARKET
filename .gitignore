@@ -18,11 +18,11 @@ venv/
 env/
 
 # Environment Variables
-# .env files are tracked intentionally
+.env
+.env.local
 
 # OS & IDE
 .DS_Store
 Thumbs.db
 .vscode/
 .idea/
-node_modules/
