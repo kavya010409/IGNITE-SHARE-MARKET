@@ -393,7 +393,7 @@ export default function App() {
 
         {/* Nav Tabs */}
         <nav class="flex items-center gap-1 bg-[#0b0e14] p-1 rounded-xl border border-[#232936]">
-          {[['trading', '📈 Trading'], ['portfolio', '💼 Portfolio'], ['leaderboard', '🏆 Leaderboard']].map(([tab, label]) => (
+          {[['trading', '📈 Trading'], ['portfolio', '💼 Portfolio']].map(([tab, label]) => (
             <button key={tab} onClick={() => setActiveTab(tab)}
               class={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${activeTab === tab ? 'bg-[#151922] text-white border border-[#232936]' : 'text-gray-400 hover:text-white'}`}>
               {label}
@@ -489,8 +489,6 @@ export default function App() {
         {activeTab === 'portfolio' && (
           <PortfolioLedger cashBalance={cashBalance} onQuickSell={(ticker) => { setSelectedTicker(ticker); setActiveTab('trading'); setRightPanelTab('order'); }} showToast={showToast} />
         )}
-
-        {activeTab === 'leaderboard' && <Leaderboard />}
       </main>
 
       {/* Toasts */}

@@ -31,13 +31,20 @@ router.get('/:ticker/analytics', (req, res) => {
 
     const history = db.prepare(
       `SELECT closing_price, recorded_at FROM stock_history
-       WHERE stock_id = ? ORDER BY recorded_at ASC LIMIT 30`
+       WHERE stock_id = ? ORDER BY recorded_at ASC LIMIT 120`
     ).all(stock.id);
+
+    const prices = history.map(h => parseFloat(h.closing_price));
+    const openPrice = prices[0] || parseFloat(stock.current_price);
+    const currentPrice = parseFloat(stock.current_price);
+    const changePct = openPrice > 0 ? Math.round(((currentPrice - openPrice) / openPrice) * 10000) / 100 : 0;
 
     return res.json({
       ticker: stock.ticker,
       name: stock.name,
-      current_price: parseFloat(stock.current_price),
+      current_price: currentPrice,
+      open_price: openPrice,
+      change_pct: changePct,
       history: history.map(h => ({
         closing_price: parseFloat(h.closing_price),
         recorded_at: h.recorded_at,

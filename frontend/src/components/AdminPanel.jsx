@@ -1,10 +1,5 @@
 import React, { useEffect, useState } from 'react';
 
-const STOCK_TICKERS = [
-  'GLOBAL', 'APEX', 'CRPT', 'METV', 'ROBO', 'NVRA', 'HYDR', 'VRTX', 'QNTM', 'PLSM',
-  'ORBT', 'STRM', 'AERO', 'SOLR', 'CELL', 'DATA', 'CYBR', 'GENM', 'PHOX', 'NANO',
-  'AURA', 'TITN', 'SYNX', 'ZEUS', 'LUNA', 'EDGE', 'FUSE', 'FLUX', 'HELI', 'ECHO', 'VIRT'
-];
 
 export default function AdminPanel({ showToast, onNewsDispatched }) {
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(
@@ -14,15 +9,24 @@ export default function AdminPanel({ showToast, onNewsDispatched }) {
   const [adminPassword, setAdminPassword] = useState('');
   const [targetStock, setTargetStock] = useState('GLOBAL');
   const [headline, setHeadline] = useState('');
-  const [multiplier, setMultiplier] = useState(1.0);
+  const [multiplier, setMultiplier] = useState(1.35);
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [authLoading, setAuthLoading] = useState(false);
+  const [stockList, setStockList] = useState([]);
+  const [lastDispatchTime, setLastDispatchTime] = useState(null);
 
   useEffect(() => {
-    // Clear legacy localStorage admin tokens if present
     localStorage.removeItem('apex_admin_auth');
     localStorage.removeItem('apex_admin_password');
+
+    // Load real stocks from API
+    fetch('/api/stocks')
+      .then(r => r.json())
+      .then(data => {
+        if (Array.isArray(data)) setStockList(data);
+      })
+      .catch(() => {});
 
     if (isAdminAuthenticated) {
       fetchNewsLogs();
@@ -95,28 +99,41 @@ export default function AdminPanel({ showToast, onNewsDispatched }) {
       created_at: new Date().toISOString(),
     };
 
-    // Broadcast across tabs
+    // Immediately show news popup on admin tab too
     onNewsDispatched(newsPacket);
 
     try {
-      await fetch('/api/admin/news', {
+      const resp = await fetch('/api/admin/news', {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
-          'X-Admin-Password': password 
+          'X-Admin-Password': password
         },
         body: JSON.stringify({
           stock_ticker: targetStock === 'GLOBAL' ? null : targetStock,
           headline: headline.trim(),
           content: headline.trim(),
           sentiment_multiplier: parseFloat(multiplier),
-          duration_minutes: 15,
+          duration_minutes: 30,
         }),
       });
-    } catch (err) {}
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        showToast(err.detail || 'Dispatch failed.', 'error');
+        setLoading(false);
+        return;
+      }
+    } catch (err) {
+      showToast('Network error during dispatch.', 'error');
+      setLoading(false);
+      return;
+    }
 
-    showToast(`Event Dispatched: [${newsPacket.stock_ticker}] ${headline}`, 'success');
+    const mult = parseFloat(multiplier);
+    const impact = mult > 1 ? `+${((mult - 1) * 100).toFixed(0)}% surge` : mult < 1 ? `-${((1 - mult) * 100).toFixed(0)}% drop` : 'neutral';
+    showToast(`✅ Dispatched [${newsPacket.stock_ticker}]: ${impact} shock queued for next tick!`, 'success');
     setHeadline('');
+    setLastDispatchTime(new Date());
     setLoading(false);
     fetchNewsLogs();
   };
@@ -185,14 +202,15 @@ export default function AdminPanel({ showToast, onNewsDispatched }) {
           <form onSubmit={handleDispatch} class="space-y-5">
             <div>
               <label class="text-xs font-semibold text-gray-400 block mb-2">Target Stock / Market Segment</label>
-              <select
+                <select
                 value={targetStock}
                 onChange={(e) => setTargetStock(e.target.value)}
                 class="w-full bg-[#0b0e14] border border-[#232936] rounded-xl px-4 py-3 text-xs text-white focus:outline-none focus:border-[#2962ff] transition-colors font-mono"
               >
-                {STOCK_TICKERS.map((t) => (
-                  <option key={t} value={t}>
-                    {t === 'GLOBAL' ? '🌐 GLOBAL MARKET (Impact All 30 Stocks)' : `${t} - Virtual Stock`}
+                <option value="GLOBAL">🌐 GLOBAL — Impact All 30 Stocks</option>
+                {stockList.map((s) => (
+                  <option key={s.ticker} value={s.ticker}>
+                    {s.ticker} — {s.name} ({parseFloat(s.current_price).toFixed(2)} IG)
                   </option>
                 ))}
               </select>
@@ -210,19 +228,22 @@ export default function AdminPanel({ showToast, onNewsDispatched }) {
               />
             </div>
 
-            <div>
-              <label class="text-xs font-semibold text-gray-400 block mb-2">Impact Severity & Volatility Multiplier</label>
-              <select
-                value={multiplier}
-                onChange={(e) => setMultiplier(parseFloat(e.target.value))}
-                class="w-full bg-[#0b0e14] border border-[#232936] rounded-xl px-4 py-3 text-xs text-white focus:outline-none focus:border-[#2962ff] transition-colors font-mono"
-              >
-                <option value="1.35">🟢 Heavy Bullish Surge (+35% Multiplier Impact)</option>
-                <option value="1.15">🟢 Moderate Bullish Growth (+15% Multiplier Impact)</option>
-                <option value="1.00">⚪ Neutral / Standard Noise (1.0x Baseline)</option>
-                <option value="0.85">🔴 Moderate Bearish Dip (-15% Multiplier Impact)</option>
-                <option value="0.65">🔴 Heavy Bearish Crash (-35% Multiplier Impact)</option>
-              </select>
+            <div class="space-y-2">
+              <label class="text-xs font-semibold text-gray-400 block mb-2">Impact Severity</label>
+              {[['0.65', '🔴 Heavy Crash (-35% drop)'], ['0.80', '🔴 Moderate Drop (-20% drop)'], ['0.90', '🟡 Mild Dip (-10% dip)'], ['1.00', '⚪ Neutral Noise (no shock)'], ['1.10', '🟢 Mild Rise (+10% surge)'], ['1.20', '🟢 Moderate Growth (+20% surge)'], ['1.35', '🚀 Heavy Surge (+35% surge)']].map(([val, label]) => (
+                <label key={val} class="flex items-center gap-3 p-2.5 rounded-xl bg-[#0b0e14] border border-[#232936] cursor-pointer hover:border-[#2962ff]/40 transition-colors">
+                  <input
+                    type="radio"
+                    name="multiplier"
+                    value={val}
+                    checked={String(multiplier) === val}
+                    onChange={() => setMultiplier(parseFloat(val))}
+                    class="accent-[#2962ff]"
+                  />
+                  <span class="text-xs font-semibold text-gray-200">{label}</span>
+                  <span class="ml-auto text-[10px] font-mono text-gray-500">{val}×</span>
+                </label>
+              ))}
             </div>
 
             <button
@@ -230,8 +251,13 @@ export default function AdminPanel({ showToast, onNewsDispatched }) {
               disabled={loading}
               class="w-full py-4 rounded-xl font-bold text-xs bg-gradient-to-r from-rose-500 via-amber-500 to-rose-600 text-white shadow-xl shadow-rose-500/20 hover:opacity-95 transition-all mt-4"
             >
-              {loading ? 'Dispatching Payload...' : '🚀 Dispatch Event & Broadcast Volatility'}
+              {loading ? '⏳ Dispatching to simulator...' : '🚀 Dispatch Event → Apply on Next Tick (≤15s)'}
             </button>
+            {lastDispatchTime && (
+              <p class="text-center text-[10px] text-emerald-400 font-mono mt-1">
+                ✅ Last dispatch: {lastDispatchTime.toLocaleTimeString()} — chart will update within 15s
+              </p>
+            )}
           </form>
         </div>
       </section>
