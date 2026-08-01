@@ -7,19 +7,61 @@ const STOCK_TICKERS = [
 ];
 
 export default function AdminPanel({ showToast, onNewsDispatched }) {
+  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(
+    localStorage.getItem('apex_admin_auth') === 'true'
+  );
+  const [adminPassword, setAdminPassword] = useState('');
   const [targetStock, setTargetStock] = useState('GLOBAL');
   const [headline, setHeadline] = useState('');
   const [multiplier, setMultiplier] = useState(1.0);
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [authLoading, setAuthLoading] = useState(false);
 
   useEffect(() => {
-    fetchNewsLogs();
-  }, []);
+    if (isAdminAuthenticated) {
+      fetchNewsLogs();
+    }
+  }, [isAdminAuthenticated]);
+
+  const handleAdminLogin = async (e) => {
+    e.preventDefault();
+    setAuthLoading(true);
+    try {
+      const resp = await fetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: adminPassword }),
+      });
+      if (resp.ok) {
+        setIsAdminAuthenticated(true);
+        localStorage.setItem('apex_admin_auth', 'true');
+        localStorage.setItem('apex_admin_password', adminPassword);
+        showToast('Admin access granted.', 'success');
+      } else {
+        showToast('Invalid admin password.', 'error');
+      }
+    } catch (err) {
+      showToast('Error connecting to authentication service.', 'error');
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleAdminLogout = () => {
+    setIsAdminAuthenticated(false);
+    localStorage.removeItem('apex_admin_auth');
+    localStorage.removeItem('apex_admin_password');
+    setAdminPassword('');
+    showToast('Admin session closed.', 'info');
+  };
 
   const fetchNewsLogs = async () => {
+    const password = localStorage.getItem('apex_admin_password') || '';
     try {
-      const resp = await fetch('/api/admin/news');
+      const resp = await fetch('/api/admin/news', {
+        headers: { 'X-Admin-Password': password }
+      });
       if (resp.ok) {
         const data = await resp.json();
         setLogs(data);
@@ -36,6 +78,8 @@ export default function AdminPanel({ showToast, onNewsDispatched }) {
     if (!headline.trim()) return;
 
     setLoading(true);
+    const password = localStorage.getItem('apex_admin_password') || '';
+
     const newsPacket = {
       type: 'news',
       event: 'news_flash',
@@ -52,7 +96,10 @@ export default function AdminPanel({ showToast, onNewsDispatched }) {
     try {
       await fetch('/api/admin/news', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-Admin-Password': password 
+        },
         body: JSON.stringify({
           stock_ticker: targetStock === 'GLOBAL' ? null : targetStock,
           headline: headline.trim(),
@@ -69,6 +116,39 @@ export default function AdminPanel({ showToast, onNewsDispatched }) {
     fetchNewsLogs();
   };
 
+  if (!isAdminAuthenticated) {
+    return (
+      <div class="max-w-md mx-auto my-12 bg-[#151922] border border-[#232936] rounded-3xl p-8 shadow-2xl relative overflow-hidden">
+        <div class="absolute -top-24 -right-24 w-48 h-48 bg-rose-500/10 rounded-full blur-3xl"></div>
+        <div class="text-center mb-6">
+          <div class="w-14 h-14 rounded-2xl bg-rose-500/10 text-rose-400 flex items-center justify-center mx-auto mb-4 border border-rose-500/20">
+            🔒
+          </div>
+          <h2 class="text-lg font-bold text-white">Admin Credentials Required</h2>
+          <p class="text-xs text-gray-400 mt-1">Please enter the security password to unlock dispatcher tools</p>
+        </div>
+
+        <form onSubmit={handleAdminLogin} class="space-y-4">
+          <input
+            type="password"
+            required
+            value={adminPassword}
+            onChange={(e) => setAdminPassword(e.target.value)}
+            placeholder="Enter Admin Password..."
+            class="w-full bg-[#0b0e14] border border-[#232936] rounded-xl px-4 py-3 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-rose-500 transition-colors text-center font-mono"
+          />
+          <button
+            type="submit"
+            disabled={authLoading}
+            class="w-full py-3 rounded-xl font-bold text-xs bg-rose-500 hover:bg-rose-600 text-white shadow-xl shadow-rose-500/20 transition-all"
+          >
+            {authLoading ? 'Verifying Credentials...' : 'Unlock Console'}
+          </button>
+        </form>
+      </div>
+    );
+  }
+
   return (
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
       {/* Left Column: Form */}
@@ -81,7 +161,12 @@ export default function AdminPanel({ showToast, onNewsDispatched }) {
               </h2>
               <p class="text-xs text-gray-400 mt-1">Injects volatility multipliers into the continuous 15-second market simulator</p>
             </div>
-            <span class="text-xs font-mono bg-rose-500/10 text-rose-400 border border-rose-500/20 px-3 py-1 rounded-full font-bold">Admin Privileges Active</span>
+            <button
+              onClick={handleAdminLogout}
+              class="text-xs font-mono bg-rose-500/10 text-rose-400 border border-rose-500/20 px-3 py-1 rounded-full font-bold hover:bg-rose-500 hover:text-white transition-all"
+            >
+              Lock Console ✕
+            </button>
           </div>
 
           <form onSubmit={handleDispatch} class="space-y-5">
