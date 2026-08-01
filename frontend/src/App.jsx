@@ -270,17 +270,22 @@ export default function App() {
   const [logoClickCount, setLogoClickCount] = useState(0);
   const logoClickTimer = useRef(null);
 
-  const handleLogoClick = () => {
+  const handleLogoClick = (e) => {
+    if (e) {
+      e.preventDefault();
+    }
+    // Check native click detail (detail === 3 is native triple click) or manual count
     const newCount = logoClickCount + 1;
     setLogoClickCount(newCount);
     if (logoClickTimer.current) clearTimeout(logoClickTimer.current);
-    if (newCount >= 3) {
+
+    if ((e && e.detail >= 3) || newCount >= 3) {
       setLogoClickCount(0);
       sessionStorage.setItem('ignite_admin_session', '');
       window.location.href = ADMIN_PAGE;
       return;
     }
-    logoClickTimer.current = setTimeout(() => setLogoClickCount(0), 800);
+    logoClickTimer.current = setTimeout(() => setLogoClickCount(0), 1000);
   };
 
   // ── Render: Auth Screen ────────────────────────────────────────────────────
@@ -302,17 +307,18 @@ export default function App() {
             </button>
           </div>
           {/* Logo — Triple click to go to Admin */}
-          <div class="text-center mb-7">
+          <div class="text-center mb-7 select-none">
             <div
               onClick={handleLogoClick}
+              onMouseDown={(e) => e.preventDefault()}
               class="w-12 h-12 rounded-xl bg-gradient-to-tr from-[#2962ff] to-indigo-500 flex items-center justify-center mx-auto mb-3 shadow-lg shadow-[#2962ff]/30 cursor-pointer select-none"
               title="Triple click for Admin"
             >
-              <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg class="w-7 h-7 text-white pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
               </svg>
             </div>
-            <h1 class="text-xl font-extrabold text-white tracking-wide">IGNITE EXCHANGE</h1>
+            <h1 onClick={handleLogoClick} onMouseDown={(e) => e.preventDefault()} class="text-xl font-extrabold text-white tracking-wide cursor-pointer select-none">IGNITE EXCHANGE</h1>
             <p class="text-xs text-gray-500 mt-1">Virtual Stock Market Terminal</p>
           </div>
 
