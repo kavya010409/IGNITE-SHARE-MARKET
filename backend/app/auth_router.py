@@ -33,8 +33,9 @@ class AuthTokenResponse(BaseModel):
 async def register_trader(payload: AuthRegisterRequest, db: AsyncSession = Depends(get_db)):
     existing = await db.scalar(select(Trader).where(Trader.email == payload.email.lower()))
     if existing:
+        # Enforce HTTP 409 Conflict for existing accounts
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=status.HTTP_409_CONFLICT,
             detail="Trader email address already registered. Please sign in instead.",
         )
 
@@ -61,6 +62,8 @@ async def register_trader(payload: AuthRegisterRequest, db: AsyncSession = Depen
 @router.post("/login", response_model=AuthTokenResponse, status_code=status.HTTP_200_OK)
 async def login_trader(payload: AuthLoginRequest, db: AsyncSession = Depends(get_db)):
     trader = await db.scalar(select(Trader).where(Trader.email == payload.email.lower()))
+    
+    # Verify username/email exists and cross-reference the hashed password strictly
     if not trader or not verify_password(payload.password, trader.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -84,7 +87,7 @@ async def get_current_trader_profile(
 ):
     trader = await db.scalar(select(Trader).where(Trader.id == trader_id))
     if not trader:
-        raise HTTPException(status_code=404, detail="Trader not found.")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Trader not found.")
     token = create_access_token({"sub": str(trader.id), "email": trader.email})
     return AuthTokenResponse(
         access_token=token,
