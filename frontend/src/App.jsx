@@ -24,7 +24,7 @@ const INITIAL_STOCKS = [
   { ticker: 'STRM', name: 'StreamFlow Cloud Services', current_price: 7.90, change_percentage: 0.88 },
   { ticker: 'AERO', name: 'Aerovault Logistics', current_price: 4.70, change_percentage: -0.15 },
   { ticker: 'SOLR', name: 'Solaria Power Group', current_price: 5.00, change_percentage: 0.50 },
-  { ticker: 'CELL', `CelluGen BioLabs`, current_price: 6.30, change_percentage: -0.40 },
+  { ticker: 'CELL', name: 'CelluGen BioLabs', current_price: 6.30, change_percentage: -0.40 },
   { ticker: 'DATA', name: 'DataSphere Analytics', current_price: 3.60, change_percentage: 0.30 },
   { ticker: 'CYBR', name: 'CyberFort Defense Systems', current_price: 7.10, change_percentage: 1.10 },
   { ticker: 'GENM', name: 'Genomix Research Inc', current_price: 2.50, change_percentage: -0.90 },
