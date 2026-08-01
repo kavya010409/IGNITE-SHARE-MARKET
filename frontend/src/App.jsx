@@ -196,16 +196,35 @@ export default function App() {
     setAuthError('');
     setAuthLoading(true);
 
+    const email = emailInput.trim().toLowerCase();
+    const password = passwordInput;
+
+    // ── Admin shortcut: try admin login first ─────────────────────────────────
+    try {
+      const adminResp = await fetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      if (adminResp.ok) {
+        setPasswordInput('');
+        setEmailInput('');
+        showToast('🔐 Admin verified — opening control panel...', 'success');
+        setTimeout(() => { window.location.hash = ADMIN_HASH; }, 600);
+        setAuthLoading(false);
+        return;
+      }
+    } catch (_) { /* not admin — continue to trader auth */ }
+
+    // ── Normal trader auth ────────────────────────────────────────────────────
     const endpoint = authMode === 'register' ? '/api/auth/register' : '/api/auth/login';
     try {
       const resp = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: emailInput.trim(), password: passwordInput }),
+        body: JSON.stringify({ email, password }),
       });
-
       const data = await resp.json().catch(() => ({}));
-
       if (resp.ok && data.access_token) {
         setToken(data.access_token);
         setTraderEmail(data.email);
@@ -219,7 +238,6 @@ export default function App() {
         showToast(`Welcome back! Cash Balance: ${data.cash_balance.toLocaleString()} IG`, 'success');
         return;
       }
-
       setPasswordInput('');
       if (resp.status === 409) setAuthError('Email already registered. Please sign in.');
       else if (resp.status === 401) setAuthError('Invalid email or password.');
@@ -231,6 +249,7 @@ export default function App() {
       setAuthLoading(false);
     }
   };
+
 
   const handleLogout = () => {
     localStorage.clear();
