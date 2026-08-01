@@ -46,10 +46,10 @@ const INITIAL_STOCKS = [
 
 export default function App() {
   // ── Auth State ─────────────────────────────────────────────────────────────
-  const [token, setToken] = useState(localStorage.getItem('apex_jwt_token') || '');
-  const [traderEmail, setTraderEmail] = useState(localStorage.getItem('apex_trader_email') || '');
-  const [cashBalance, setCashBalance] = useState(parseFloat(localStorage.getItem('apex_cash_balance')) || 20000.00);
-  const [view, setView] = useState('trader-auth'); // Always require login on reload
+  const [token, setToken] = useState(() => localStorage.getItem('apex_jwt_token') || '');
+  const [traderEmail, setTraderEmail] = useState(() => localStorage.getItem('apex_trader_email') || '');
+  const [cashBalance, setCashBalance] = useState(() => parseFloat(localStorage.getItem('apex_cash_balance')) || 20000.00);
+  const [view, setView] = useState(() => (localStorage.getItem('apex_jwt_token') ? 'dashboard' : 'trader-auth'));
   const [activeTab, setActiveTab] = useState('trading');
   const [rightPanelTab, setRightPanelTab] = useState('chart');
 
