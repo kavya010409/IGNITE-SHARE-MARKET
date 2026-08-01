@@ -43,6 +43,16 @@ export default function Navbar({ traderEmail, cashBalance, portfolioValue, isCon
           💼 My Portfolio
         </button>
         <button
+          onClick={() => setActiveTab('leaderboard')}
+          class={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+            activeTab === 'leaderboard'
+              ? 'bg-[#151922] text-white shadow-md border border-[#232936]'
+              : 'text-gray-400 hover:text-white'
+          }`}
+        >
+          🏆 Leaderboard
+        </button>
+        <button
           onClick={() => setActiveTab('admin')}
           class={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
             activeTab === 'admin'
