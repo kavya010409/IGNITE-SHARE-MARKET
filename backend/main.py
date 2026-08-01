@@ -19,6 +19,7 @@ from app.models import Stock, StockHistory
 from app.stocks_router import router as stocks_router
 from app.trade_router import router as trade_router
 from app.websocket_manager import RedisBroadcaster, router as ws_router
+from app.leaderboard_router import router as leaderboard_router
 
 logging.basicConfig(
     level=logging.INFO,
@@ -140,6 +141,7 @@ app.include_router(stocks_router)
 app.include_router(trade_router)
 app.include_router(admin_router)
 app.include_router(ws_router)
+app.include_router(leaderboard_router)
 
 
 @app.get("/health", tags=["System Health"])
