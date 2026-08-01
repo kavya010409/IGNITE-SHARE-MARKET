@@ -34,6 +34,7 @@ class NewsLogResponse(BaseModel):
 
 
 class AdminLoginRequest(BaseModel):
+    email: str
     password: str
 
 
@@ -47,7 +48,7 @@ async def verify_admin(x_admin_password: Optional[str] = Header(None)):
 
 @router.post("/login", status_code=status.HTTP_200_OK)
 async def admin_login(payload: AdminLoginRequest):
-    if payload.password != settings.ADMIN_PASSWORD:
+    if payload.email != settings.ADMIN_EMAIL or payload.password != settings.ADMIN_PASSWORD:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Access Denied: Invalid admin credentials.",

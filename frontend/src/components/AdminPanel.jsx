@@ -10,6 +10,7 @@ export default function AdminPanel({ showToast, onNewsDispatched }) {
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(
     localStorage.getItem('apex_admin_auth') === 'true'
   );
+  const [adminEmail, setAdminEmail] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
   const [targetStock, setTargetStock] = useState('GLOBAL');
   const [headline, setHeadline] = useState('');
@@ -31,7 +32,7 @@ export default function AdminPanel({ showToast, onNewsDispatched }) {
       const resp = await fetch('/api/admin/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: adminPassword }),
+        body: JSON.stringify({ email: adminEmail, password: adminPassword }),
       });
       if (resp.ok) {
         setIsAdminAuthenticated(true);
@@ -39,7 +40,7 @@ export default function AdminPanel({ showToast, onNewsDispatched }) {
         localStorage.setItem('apex_admin_password', adminPassword);
         showToast('Admin access granted.', 'success');
       } else {
-        showToast('Invalid admin password.', 'error');
+        showToast('Invalid admin email or password.', 'error');
       }
     } catch (err) {
       showToast('Error connecting to authentication service.', 'error');
@@ -125,10 +126,18 @@ export default function AdminPanel({ showToast, onNewsDispatched }) {
             🔒
           </div>
           <h2 class="text-lg font-bold text-white">Admin Credentials Required</h2>
-          <p class="text-xs text-gray-400 mt-1">Please enter the security password to unlock dispatcher tools</p>
+          <p class="text-xs text-gray-400 mt-1">Enter admin email and password to unlock dispatcher tools</p>
         </div>
 
         <form onSubmit={handleAdminLogin} class="space-y-4">
+          <input
+            type="email"
+            required
+            value={adminEmail}
+            onChange={(e) => setAdminEmail(e.target.value)}
+            placeholder="admin@gmail.com"
+            class="w-full bg-[#0b0e14] border border-[#232936] rounded-xl px-4 py-3 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-rose-500 transition-colors font-mono"
+          />
           <input
             type="password"
             required
