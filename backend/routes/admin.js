@@ -1,5 +1,6 @@
 const express = require('express');
 const db = require('../db');
+const { broadcastNewsFlash } = require('../marketSimulator');
 
 const router = express.Router();
 
@@ -54,6 +55,18 @@ router.post('/news', adminAuth, (req, res) => {
     ).run(stockId, headline, content || headline, sentiment_multiplier, now.toISOString(), expiresAt.toISOString());
 
     const entry = db.prepare('SELECT * FROM news_logs WHERE id = ?').get(result.lastInsertRowid);
+
+    // Broadcast breaking news in real-time to all trader tabs via WebSocket
+    try {
+      broadcastNewsFlash({
+        stock_ticker: targetStr,
+        headline: entry.headline,
+        sentiment_multiplier: entry.sentiment_multiplier,
+        created_at: entry.created_at,
+      });
+    } catch (wsErr) {
+      console.error('Error broadcasting news via WS:', wsErr);
+    }
 
     return res.status(201).json({
       id: entry.id,

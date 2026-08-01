@@ -111,9 +111,19 @@ function processMarketTick() {
   }
 }
 
+function broadcastNewsFlash(news) {
+  broadcastToAll({
+    event: 'news_flash',
+    stock_ticker: news.stock_ticker || 'GLOBAL',
+    headline: news.headline,
+    sentiment_multiplier: parseFloat(news.sentiment_multiplier),
+    created_at: news.created_at,
+  });
+}
+
 function startMarketSimulator() {
   console.log('🚀 Market Simulator started — ticking every 15 seconds.');
   setInterval(processMarketTick, TICK_INTERVAL_MS);
 }
 
-module.exports = { startMarketSimulator, setWebSocketServer };
+module.exports = { startMarketSimulator, setWebSocketServer, broadcastNewsFlash };
