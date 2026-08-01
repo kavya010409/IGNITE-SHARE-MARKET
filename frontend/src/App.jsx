@@ -48,7 +48,7 @@ export default function App() {
   const [token, setToken] = useState(localStorage.getItem('apex_jwt_token') || '');
   const [traderEmail, setTraderEmail] = useState(localStorage.getItem('apex_trader_email') || '');
   const [cashBalance, setCashBalance] = useState(parseFloat(localStorage.getItem('apex_cash_balance')) || 20000.00);
-  const [view, setView] = useState(() => (token ? 'dashboard' : 'trader-auth'));
+  const [view, setView] = useState('trader-auth'); // Always require login on reload
   const [activeTab, setActiveTab] = useState('trading');
   const [rightPanelTab, setRightPanelTab] = useState('chart');
 
@@ -270,15 +270,17 @@ export default function App() {
   if (view === 'trader-auth') {
     return (
       <div class="min-h-screen flex items-center justify-center p-4 bg-[#0b0e14] relative">
-        {/* Hidden button: Styled to blend in perfectly with background, in the very bottom right corner */}
+        {/* Visible Admin Access Button (temporary request) */}
         <button
           onClick={() => {
             sessionStorage.setItem('ignite_admin_session', '');
             window.location.href = ADMIN_PAGE;
           }}
-          class="absolute bottom-4 right-4 w-4 h-4 rounded-full bg-[#0b0e14] hover:bg-[#151922] border border-transparent hover:border-[#232936] transition-colors focus:outline-none"
-          title="Console Setup"
-        />
+          class="absolute bottom-6 right-6 px-3.5 py-2 rounded-xl bg-rose-950/30 hover:bg-rose-900/40 border border-rose-900/40 hover:border-rose-500/40 text-rose-400 hover:text-rose-300 text-xs font-bold font-mono transition-all flex items-center gap-1.5 shadow-lg shadow-rose-950/20"
+          title="Go to Admin Console"
+        >
+          <span>🔒</span> Admin Page
+        </button>
 
         <div class="w-full max-w-sm bg-[#151922] border border-[#232936] rounded-2xl p-8 shadow-2xl">
           {/* Logo */}
