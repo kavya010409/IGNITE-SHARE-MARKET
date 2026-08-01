@@ -267,6 +267,8 @@ export default function App() {
 
 
   // ── Render: Auth Screen ────────────────────────────────────────────────────
+  if (view === 'trader-auth') {
+    return (
       <div class="min-h-screen flex items-center justify-center p-4 bg-[#0b0e14]">
         <div class="w-full max-w-sm bg-[#151922] border border-[#232936] rounded-2xl p-8 shadow-2xl relative">
           {/* Admin Redirect Link - Placed inside the main form container card at the top right as a link badge */}
