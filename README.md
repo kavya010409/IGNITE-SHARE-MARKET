@@ -1,99 +1,77 @@
-# ⚡ IGNITE VIRTUAL STOCK MARKET PLATFORM
+# ⚡ IGNITE VIRTUAL STOCK MARKET PLATFORM (React + FastAPI Monorepo)
 
-A high-performance, real-time virtual stock market trading platform and market volatility simulation engine. Built with FastAPI (Async Python), Redis Pub/Sub WebSockets, SQLAlchemy 2.0 ORM, and modern Upstox-inspired Tailwind CSS & Chart.js frontend.
-
----
-
-## 🌟 Key Features
-
-1. **30 Virtual Stocks Watchlist**:
-   * Initialized with 30 unique stocks (`APEX`, `CRPT`, `ROBO`, `FUSE`, etc.) with 30 days of daily historical closing quotes.
-   * Enforces a strict **$0.50 IG Price Floor** across all market fluctuations.
-2. **Continuous Market Simulator (`app/market_simulator.py`)**:
-   * Continuous 15-second simulation loop with subtle organic noise step (`-0.4% to +0.4%`).
-   * Powered by Redis Pub/Sub WebSocket broadcasting (`ws://localhost:8000/api/ws/watchlist`).
-3. **Admin Volatility & Breaking News Engine (`admin.html`)**:
-   * Admin panel for injecting market-moving news events with customizable sentiment multipliers (`+35% Bullish` down to `-35% Bearish`).
-   * **2-Minute Shock Execution Gate**: When news is dispatched, prices tick organically for 2 minutes while traders anticipate the news impact. After 120 seconds, a **Drastic Market Realignment** applies the sentiment shock to target stock prices.
-4. **Trader Dashboard (`index.html` & `app.js`)**:
-   * Gated Authentication Screen with starting capital of **20,000.00 IG**.
-   * Interactive Chart.js 1-month historical analytics line graphs.
-   * Atomic Buy/Sell order placement with row-level locks (`SELECT FOR UPDATE`).
-   * **Instant Breaking News Alert Modal** and **Live Market News Archive Feed**.
+A production-ready virtual stock trading platform and market volatility simulation engine. Built as a decoupled full-stack architecture with a **React.js + Vite** frontend (`frontend/`) and an asynchronous **FastAPI** backend (`backend/`).
 
 ---
 
-## 📂 Project Architecture
+## 📂 Monorepo Architecture
 
 ```text
 virtual_trading_platform/
-├── app/
-│   ├── admin_router.py       # Admin news dispatch API (/api/admin/news)
-│   ├── auth_router.py        # Trader registration & JWT login API (/api/auth)
-│   ├── config.py             # Pydantic BaseSettings environment configurations
-│   ├── database.py           # Async SQLAlchemy engine & sessionmaker
-│   ├── main.py               # FastAPI application entrypoint & static routes
-│   ├── market_simulator.py   # Continuous 15s ticker loop with 2-min shock engine
-│   ├── models.py             # SQLAlchemy models (Trader, Stock, History, Portfolio, NewsLog)
-│   ├── security.py           # Passlib password hashing & PyJWT token utilities
-│   ├── stocks_router.py      # Stock analytics historical query API (/api/stocks)
-│   ├── trade_router.py       # Atomic row-locked buy & sell endpoints (/api/trade)
-│   └── websocket_manager.py  # WebSocket connection manager & Redis listener
-├── scripts/
-│   └── seed_data.py          # Database seeding script (30 stocks + 30-day history)
-├── admin.html                # Admin Volatility & News Overlay Control Panel
-├── index.html                # Trader Dashboard Web Interface
-├── app.js                    # Client-side JavaScript Engine
-├── view_live_market.py       # Terminal TUI live ticker visualizer
-├── docker-compose.yml        # Multi-container orchestration (FastAPI + Postgres + Redis)
-├── Dockerfile                # Production multi-stage Docker build file
-├── requirements.txt          # Python dependencies manifest
-└── README.md                 # Project Documentation
+├── backend/
+│   ├── app/
+│   │   ├── admin_router.py       # Admin volatility dispatch API (/api/admin/news)
+│   │   ├── auth_router.py        # Trader registration & JWT auth API (/api/auth)
+│   │   ├── config.py             # App settings & SQLite zero-config fallback
+│   │   ├── database.py           # Async SQLAlchemy engine & sessionmaker
+│   │   ├── market_simulator.py   # Continuous 15s ticker loop with 2-min news shock
+│   │   ├── models.py             # DB Models (Trader, Stock, History, Portfolio, News)
+│   │   ├── security.py           # Password hashing & PyJWT token utilities
+│   │   ├── stocks_router.py      # Stock analytics & 30-day history (/api/stocks)
+│   │   ├── trade_router.py       # Strict row-locked trade execution (/api/trade)
+│   │   └── websocket_manager.py  # Live WebSocket ticker & Pub/Sub stream
+│   ├── main.py                   # FastAPI entrypoint & auto-seeding engine
+│   └── requirements.txt          # Backend dependencies
+├── frontend/
+│   ├── src/
+│   │   ├── components/
+│   │   │   ├── AdminPanel.jsx        # Admin news & volatility injection panel
+│   │   │   ├── AuthScreen.jsx        # Trader registration & sign-in screen
+│   │   │   ├── BreakingNewsModal.jsx # Floating breaking news modal banner
+│   │   │   ├── Navbar.jsx            # Account balance & navigation header
+│   │   │   ├── NewsFeed.jsx          # Live market news archive feed
+│   │   │   ├── OrderForm.jsx         # Strict validation buy/sell form
+│   │   │   ├── PortfolioLedger.jsx   # Portfolio position holdings ledger
+│   │   │   ├── StockChart.jsx        # Chart.js 1-month analytics graph
+│   │   │   └── Watchlist.jsx         # 30-Stock real-time price watchlist
+│   │   ├── App.jsx                   # Main React application state container
+│   │   ├── index.css                 # Tailwind CSS styling
+│   │   └── main.jsx                  # React entrypoint
+│   ├── index.html                    # Single Page App HTML container
+│   ├── package.json                  # React + Vite dependencies
+│   └── vite.config.js                # Vite development server config
+├── .gitignore                        # Git exclusion rules
+└── README.md                         # Repository documentation
 ```
+
+---
+
+## 🔒 Financial & Trading Logic Controls
+
+1. **Strict Cash Balance Check on Buy**:
+   * Order execution verifies `cash_balance >= (quantity * current_price)`.
+   * If insufficient, blocks execution with an explicit error: `"Insufficient IG cash balance for this buy order."`
+2. **Strict Share Ownership Check on Sell**:
+   * Order execution queries trader's `Portfolio` position record (`portfolio.quantity >= sell_quantity`).
+   * If the trader owns 0 shares or fewer shares than requested to sell, blocks execution with an explicit error: `"You cannot sell shares you do not own in your portfolio."`
+3. **2-Minute News Shock Execution Gate**:
+   * News events tick organically for 2 minutes (120s) while traders anticipate the news impact.
+   * After 120 seconds, a **Drastic Market Realignment** applies the sentiment shock to target stock prices.
 
 ---
 
 ## 🚀 Quick Start Guide
 
-### Option 1: Standalone Demo Mode (No External Services Required)
-1. Serve static files using Python's built-in HTTP server:
-   ```bash
-   python -m http.server 8000
-   ```
-2. Open your web browser:
-   * **Trader Floor**: [http://localhost:8000/index.html](http://localhost:8000/index.html)
-   * **Admin Panel**: [http://localhost:8000/admin.html](http://localhost:8000/admin.html)
+### 1. Frontend Setup (React.js + Vite)
+```bash
+cd frontend
+npm install
+npm run dev
+```
 
----
-
-### Option 2: Docker Compose (Full Stack with PostgreSQL & Redis)
-1. Launch all services:
-   ```bash
-   docker-compose up --build -d
-   ```
-2. Seed initial stock data:
-   ```bash
-   docker-compose exec web python scripts/seed_data.py
-   ```
-3. Open interface:
-   * **Web Terminal**: [http://localhost:8000/index.html](http://localhost:8000/index.html)
-   * **Admin Overlay**: [http://localhost:8000/admin.html](http://localhost:8000/admin.html)
-
----
-
-## 🛠️ API Reference Summary
-
-| Method | Endpoint | Description |
-| :--- | :--- | :--- |
-| `POST` | `/api/auth/register` | Register new trader account (Grants 20,000 IG) |
-| `POST` | `/api/auth/login` | Authenticate trader and receive JWT token |
-| `GET` | `/api/stocks/{ticker}/analytics` | 30-day chronological historical closing prices |
-| `POST` | `/api/trade/buy` | Atomic buy order with row-level locking |
-| `POST` | `/api/trade/sell` | Atomic sell order with weighted average cost basis |
-| `POST` | `/api/admin/news` | Dispatch market news & volatility multiplier |
-| `WS` | `/api/ws/watchlist` | Redis Pub/Sub real-time market price stream |
-
----
-
-## 📄 License
-MIT License - Open for team collaboration & development.
+### 2. Backend Setup (FastAPI)
+```bash
+cd backend
+pip install -r requirements.txt
+python -m uvicorn backend.main:app --port 8000
+```
