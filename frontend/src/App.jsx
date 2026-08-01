@@ -266,6 +266,23 @@ export default function App() {
   const activeStock = stocks.find(s => s.ticker === selectedTicker) || stocks[0];
 
 
+  // ── Triple-click logo for Admin Access ─────────────────────────────────────
+  const [logoClickCount, setLogoClickCount] = useState(0);
+  const logoClickTimer = useRef(null);
+
+  const handleLogoClick = () => {
+    const newCount = logoClickCount + 1;
+    setLogoClickCount(newCount);
+    if (logoClickTimer.current) clearTimeout(logoClickTimer.current);
+    if (newCount >= 3) {
+      setLogoClickCount(0);
+      sessionStorage.setItem('ignite_admin_session', '');
+      window.location.href = ADMIN_PAGE;
+      return;
+    }
+    logoClickTimer.current = setTimeout(() => setLogoClickCount(0), 800);
+  };
+
   // ── Render: Auth Screen ────────────────────────────────────────────────────
   if (view === 'trader-auth') {
     return (
@@ -284,9 +301,13 @@ export default function App() {
               <span>🔒</span> Admin
             </button>
           </div>
-          {/* Logo */}
+          {/* Logo — Triple click to go to Admin */}
           <div class="text-center mb-7">
-            <div class="w-12 h-12 rounded-xl bg-gradient-to-tr from-[#2962ff] to-indigo-500 flex items-center justify-center mx-auto mb-3 shadow-lg shadow-[#2962ff]/30">
+            <div
+              onClick={handleLogoClick}
+              class="w-12 h-12 rounded-xl bg-gradient-to-tr from-[#2962ff] to-indigo-500 flex items-center justify-center mx-auto mb-3 shadow-lg shadow-[#2962ff]/30 cursor-pointer select-none"
+              title="Triple click for Admin"
+            >
               <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
               </svg>
