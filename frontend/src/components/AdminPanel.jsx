@@ -8,7 +8,7 @@ const STOCK_TICKERS = [
 
 export default function AdminPanel({ showToast, onNewsDispatched }) {
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(
-    localStorage.getItem('apex_admin_auth') === 'true'
+    sessionStorage.getItem('apex_admin_auth') === 'true'
   );
   const [adminEmail, setAdminEmail] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
@@ -20,6 +20,10 @@ export default function AdminPanel({ showToast, onNewsDispatched }) {
   const [authLoading, setAuthLoading] = useState(false);
 
   useEffect(() => {
+    // Clear legacy localStorage admin tokens if present
+    localStorage.removeItem('apex_admin_auth');
+    localStorage.removeItem('apex_admin_password');
+
     if (isAdminAuthenticated) {
       fetchNewsLogs();
     }
@@ -36,8 +40,8 @@ export default function AdminPanel({ showToast, onNewsDispatched }) {
       });
       if (resp.ok) {
         setIsAdminAuthenticated(true);
-        localStorage.setItem('apex_admin_auth', 'true');
-        localStorage.setItem('apex_admin_password', adminPassword);
+        sessionStorage.setItem('apex_admin_auth', 'true');
+        sessionStorage.setItem('apex_admin_password', adminPassword);
         showToast('Admin access granted.', 'success');
       } else {
         showToast('Invalid admin email or password.', 'error');
@@ -51,14 +55,14 @@ export default function AdminPanel({ showToast, onNewsDispatched }) {
 
   const handleAdminLogout = () => {
     setIsAdminAuthenticated(false);
-    localStorage.removeItem('apex_admin_auth');
-    localStorage.removeItem('apex_admin_password');
+    sessionStorage.removeItem('apex_admin_auth');
+    sessionStorage.removeItem('apex_admin_password');
     setAdminPassword('');
     showToast('Admin session closed.', 'info');
   };
 
   const fetchNewsLogs = async () => {
-    const password = localStorage.getItem('apex_admin_password') || '';
+    const password = sessionStorage.getItem('apex_admin_password') || '';
     try {
       const resp = await fetch('/api/admin/news', {
         headers: { 'X-Admin-Password': password }
@@ -79,7 +83,7 @@ export default function AdminPanel({ showToast, onNewsDispatched }) {
     if (!headline.trim()) return;
 
     setLoading(true);
-    const password = localStorage.getItem('apex_admin_password') || '';
+    const password = sessionStorage.getItem('apex_admin_password') || '';
 
     const newsPacket = {
       type: 'news',
