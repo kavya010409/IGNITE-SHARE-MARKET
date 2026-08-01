@@ -267,22 +267,21 @@ export default function App() {
 
 
   // ── Render: Auth Screen ────────────────────────────────────────────────────
-  if (view === 'trader-auth') {
-    return (
-      <div class="min-h-screen flex items-center justify-center p-4 bg-[#0b0e14] relative">
-        {/* Visible Admin Access Button (temporary request) */}
-        <button
-          onClick={() => {
-            sessionStorage.setItem('ignite_admin_session', '');
-            window.location.href = ADMIN_PAGE;
-          }}
-          class="absolute bottom-6 right-6 px-3.5 py-2 rounded-xl bg-rose-950/30 hover:bg-rose-900/40 border border-rose-900/40 hover:border-rose-500/40 text-rose-400 hover:text-rose-300 text-xs font-bold font-mono transition-all flex items-center gap-1.5 shadow-lg shadow-rose-950/20"
-          title="Go to Admin Console"
-        >
-          <span>🔒</span> Admin Page
-        </button>
-
-        <div class="w-full max-w-sm bg-[#151922] border border-[#232936] rounded-2xl p-8 shadow-2xl">
+      <div class="min-h-screen flex items-center justify-center p-4 bg-[#0b0e14]">
+        <div class="w-full max-w-sm bg-[#151922] border border-[#232936] rounded-2xl p-8 shadow-2xl relative">
+          {/* Admin Redirect Link - Placed inside the main form container card at the top right as a link badge */}
+          <div class="absolute top-4 right-4">
+            <button
+              onClick={() => {
+                sessionStorage.setItem('ignite_admin_session', '');
+                window.location.href = ADMIN_PAGE;
+              }}
+              class="px-2.5 py-1 rounded-lg bg-rose-950/40 hover:bg-rose-900/50 border border-rose-900/50 hover:border-rose-500/40 text-rose-400 text-[10px] font-bold font-mono transition-all flex items-center gap-1"
+              title="Go to Admin Console"
+            >
+              <span>🔒</span> Admin
+            </button>
+          </div>
           {/* Logo */}
           <div class="text-center mb-7">
             <div class="w-12 h-12 rounded-xl bg-gradient-to-tr from-[#2962ff] to-indigo-500 flex items-center justify-center mx-auto mb-3 shadow-lg shadow-[#2962ff]/30">
