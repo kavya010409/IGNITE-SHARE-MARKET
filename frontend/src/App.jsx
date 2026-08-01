@@ -288,7 +288,9 @@ export default function App() {
   useEffect(() => {
     if (view !== 'trader-auth') return;
     const handler = (e) => {
-      if (e.ctrlKey && e.shiftKey && e.key === 'A') {
+      const isMac = navigator.platform.toUpperCase().includes('MAC');
+      const triggerKey = isMac ? e.metaKey : e.ctrlKey;
+      if (triggerKey && e.shiftKey && e.key === 'A') {
         e.preventDefault();
         window.location.href = ADMIN_PAGE;
       }
