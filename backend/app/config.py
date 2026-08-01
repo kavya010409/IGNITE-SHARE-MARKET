@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     HOST: str = "0.0.0.0"
     PORT: int = 8000
     PRICE_FLOOR: float = 0.50
+    ADMIN_PASSWORD: str = "IgniteSecureAdminPass2026!"
 
     class Config:
         case_sensitive = True
