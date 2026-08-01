@@ -1,4 +1,6 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import Navbar from './components/Navbar';
+import AuthScreen from './components/AuthScreen';
 import Watchlist from './components/Watchlist';
 import StockChart from './components/StockChart';
 import OrderForm from './components/OrderForm';
@@ -7,10 +9,6 @@ import AdminPanel from './components/AdminPanel';
 import BreakingNewsModal from './components/BreakingNewsModal';
 import NewsFeed from './components/NewsFeed';
 import Leaderboard from './components/Leaderboard';
-
-// ─── Secret Admin Hash ────────────────────────────────────────────────────────
-// Admin URL: http://localhost:3001/#ignite-admin-x9k2
-const ADMIN_HASH = '#ignite-admin-x9k2';
 
 const INITIAL_STOCKS = [
   { ticker: 'APEX', name: 'Apex Dynamics Corp', current_price: 4.50, change_percentage: 0.76 },
@@ -45,134 +43,78 @@ const INITIAL_STOCKS = [
   { ticker: 'VIRT', name: 'Virtualis Gaming Interactive', current_price: 6.00, change_percentage: 0.95 },
 ];
 
-// ─── Secret Admin URL ─────────────────────────────────────────────────────────
-const ADMIN_SECRET_PATH = '/ignite-admin-x9k2';
-
 export default function App() {
-  // ── Hash-based admin route (works reliably in Vite SPA) ───────────────────
-  const [isAdminRoute, setIsAdminRoute] = useState(
-    window.location.hash === ADMIN_HASH
-  );
-
-  useEffect(() => {
-    const handleHashChange = () => {
-      setIsAdminRoute(window.location.hash === ADMIN_HASH);
-    };
-    window.addEventListener('hashchange', handleHashChange);
-    return () => window.removeEventListener('hashchange', handleHashChange);
-  }, []);
-  // ── Auth State ─────────────────────────────────────────────────────────────
+  // Token and Session Context
   const [token, setToken] = useState(localStorage.getItem('apex_jwt_token') || '');
   const [traderEmail, setTraderEmail] = useState(localStorage.getItem('apex_trader_email') || '');
   const [cashBalance, setCashBalance] = useState(parseFloat(localStorage.getItem('apex_cash_balance')) || 20000.00);
+
+  // Routing State Machine: "trader-auth" | "dashboard" | "admin-auth" | "admin-panel"
   const [view, setView] = useState(() => (token ? 'dashboard' : 'trader-auth'));
   const [activeTab, setActiveTab] = useState('trading');
   const [rightPanelTab, setRightPanelTab] = useState('chart');
 
-  // ── Auth Form State ────────────────────────────────────────────────────────
-  const [authMode, setAuthMode] = useState('login');
+  // Controlled Auth State Inputs
+  const [authMode, setAuthMode] = useState('login'); // 'login' | 'register'
+  const [usernameInput, setUsernameInput] = useState('');
   const [emailInput, setEmailInput] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
   const [authError, setAuthError] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
 
-  // ── Market State ───────────────────────────────────────────────────────────
+  // Market Engine State
   const [stocks, setStocks] = useState(INITIAL_STOCKS);
   const [selectedTicker, setSelectedTicker] = useState('APEX');
   const [portfolio, setPortfolio] = useState([]);
   const [portfolioValue, setPortfolioValue] = useState(0);
-  const [isConnected, setIsConnected] = useState(false);
 
-  // ── News & Toasts ──────────────────────────────────────────────────────────
   const [newsModal, setNewsModal] = useState(null);
   const [newsArchive, setNewsArchive] = useState([]);
   const [toasts, setToasts] = useState([]);
+  const [isConnected, setIsConnected] = useState(false);
 
-  // ── WebSocket Ref ──────────────────────────────────────────────────────────
-  const wsRef = useRef(null);
-  const reconnectTimerRef = useRef(null);
-
-  // ── WebSocket: connect to live market feed ─────────────────────────────────
+  // Sync BroadcastChannel and Market Loop
   useEffect(() => {
-    const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-    const wsUrl = `${wsProtocol}://${window.location.host}/api/ws/watchlist`;
-
-    function connect() {
-      const ws = new WebSocket(wsUrl);
-      wsRef.current = ws;
-
-      ws.onopen = () => {
-        setIsConnected(true);
-        console.log('🟢 WebSocket connected to live market feed.');
-        if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
-      };
-
-      ws.onmessage = (event) => {
-        try {
-          const msg = JSON.parse(event.data);
-
-          // Live market tick — update all stock prices
-          if (msg.event === 'market_tick' && Array.isArray(msg.data)) {
-            setStocks(prev => {
-              const map = {};
-              prev.forEach(s => { map[s.ticker] = s; });
-              msg.data.forEach(tick => {
-                if (map[tick.ticker]) {
-                  map[tick.ticker] = {
-                    ...map[tick.ticker],
-                    current_price: tick.current_price,
-                    change_percentage: tick.change_percentage,
-                  };
-                }
-              });
-              return Object.values(map);
-            });
-          }
-
-          // Breaking news event from admin
-          if (msg.event === 'news_flash') {
-            handleNewsReceived({
-              headline: msg.headline,
-              target: msg.stock_ticker || 'GLOBAL',
-              sentiment_multiplier: msg.sentiment_multiplier,
-              created_at: msg.created_at,
-            });
-          }
-        } catch (_) {}
-      };
-
-      ws.onclose = () => {
-        setIsConnected(false);
-        console.log('🔴 WebSocket disconnected. Reconnecting in 3s...');
-        reconnectTimerRef.current = setTimeout(connect, 3000);
-      };
-
-      ws.onerror = () => ws.close();
-    }
-
-    connect();
-    return () => {
-      if (wsRef.current) wsRef.current.close();
-      if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
+    const channel = new BroadcastChannel('apex_market_news');
+    channel.onmessage = (event) => {
+      if (event.data) {
+        handleNewsReceived(event.data);
+      }
     };
-  }, []);
 
-  // ── Initial data + portfolio load ──────────────────────────────────────────
-  useEffect(() => {
-    fetchStocks();
-    if (token) fetchPortfolio();
     const archived = JSON.parse(localStorage.getItem('apex_news_archive') || '[]');
     setNewsArchive(archived);
+
+    fetchStocks();
+    if (token) fetchPortfolio();
+
+    const timer = setInterval(runMarketSimulation, 3000);
+    return () => {
+      clearInterval(timer);
+      channel.close();
+    };
   }, [token]);
+
+  const runMarketSimulation = () => {
+    setStocks((prev) =>
+      prev.map((s) => {
+        const oldPrice = parseFloat(s.current_price);
+        const noisePct = (Math.random() * 0.016 - 0.008);
+        const newPrice = Math.max(0.50, Math.round(oldPrice * (1 + noisePct) * 100) / 100);
+        const changePct = Math.round(((newPrice - oldPrice) / oldPrice) * 100 * 100) / 100;
+        return { ...s, current_price: newPrice, change_percentage: changePct };
+      })
+    );
+  };
 
   const fetchStocks = async () => {
     try {
       const resp = await fetch('/api/stocks');
       if (resp.ok) {
         const data = await resp.json();
-        setStocks(data.map(s => ({ ...s, change_percentage: 0 })));
+        setStocks(data.map((s) => ({ ...s, change_percentage: (Math.random() * 2 - 1) })));
       }
-    } catch (_) {}
+    } catch (e) {}
   };
 
   const fetchPortfolio = async () => {
@@ -187,312 +129,387 @@ export default function App() {
         const val = data.reduce((sum, item) => sum + item.current_value, 0);
         setPortfolioValue(val);
       }
-    } catch (_) {}
+    } catch (e) {}
   };
 
-  // ── Auth Submit ────────────────────────────────────────────────────────────
+  // Strict API Handshaking & Authentication Submit Handler
   const handleAuthSubmit = async (e) => {
     e.preventDefault();
     setAuthError('');
     setAuthLoading(true);
 
     const endpoint = authMode === 'register' ? '/api/auth/register' : '/api/auth/login';
+    const payload = {
+      email: emailInput.trim(),
+      password: passwordInput,
+    };
+
     try {
       const resp = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: emailInput.trim(), password: passwordInput }),
+        body: JSON.stringify(payload),
       });
 
       const data = await resp.json().catch(() => ({}));
 
       if (resp.ok && data.access_token) {
+        // Unlock State Machine & Transition to Dashboard
         setToken(data.access_token);
         setTraderEmail(data.email);
         setCashBalance(data.cash_balance);
+
         localStorage.setItem('apex_jwt_token', data.access_token);
         localStorage.setItem('apex_trader_email', data.email);
         localStorage.setItem('apex_cash_balance', data.cash_balance.toString());
+
+        // Wipe sensitive controlled state inputs upon unlock
         setPasswordInput('');
+        setUsernameInput('');
         setEmailInput('');
+
         setView('dashboard');
-        showToast(`Welcome back! Cash Balance: ${data.cash_balance.toLocaleString()} IG`, 'success');
+        showToast(`Authenticated as ${data.email}. Cash Balance: 20,000.00 IG`, 'success');
         return;
       }
 
+      // Explicit Failure Handshake: Map Error Status to Local State & Lock Dashboard
       setPasswordInput('');
-      if (resp.status === 409) setAuthError('Email already registered. Please sign in.');
-      else if (resp.status === 401) setAuthError('Invalid email or password.');
-      else setAuthError(data.detail || 'Authentication failed. Try again.');
-    } catch (_) {
+      if (resp.status === 409) {
+        setAuthError('Trader account already registered. Please sign in instead.');
+      } else if (resp.status === 401) {
+        setAuthError('Invalid credentials. Password or email verification failed.');
+      } else {
+        setAuthError(data.detail || 'Authentication handshake rejected by server.');
+      }
+    } catch (err) {
       setPasswordInput('');
-      setAuthError('Server offline. Please try again shortly.');
+      setAuthError('Secure API Server offline. Unauthenticated access blocked.');
     } finally {
       setAuthLoading(false);
     }
   };
 
+  // Explicit Logout Handler: Wipes token, memory, and controlled state inputs
   const handleLogout = () => {
     localStorage.clear();
-    setToken(''); setTraderEmail(''); setCashBalance(20000); setPortfolio([]);
-    setEmailInput(''); setPasswordInput(''); setAuthError('');
+    setToken('');
+    setTraderEmail('');
+    setCashBalance(20000.00);
+    setPortfolio([]);
+
+    setUsernameInput('');
+    setEmailInput('');
+    setPasswordInput('');
+    setAuthError('');
+
     setView('trader-auth');
-    showToast('Signed out successfully.', 'info');
+    showToast('Logged out cleanly. State & session memory wiped.', 'info');
   };
 
-  const handleTradeSuccess = (newCash) => {
-    setCashBalance(newCash);
-    localStorage.setItem('apex_cash_balance', newCash.toString());
+  const handleTradeSuccess = (newCashBalance) => {
+    setCashBalance(newCashBalance);
+    localStorage.setItem('apex_cash_balance', newCashBalance.toString());
     fetchPortfolio();
+  };
+
+  const handleQuickSell = (ticker) => {
+    setSelectedTicker(ticker);
+    setActiveTab('trading');
+    setRightPanelTab('order');
   };
 
   const handleNewsReceived = (newsPacket) => {
     setNewsModal(newsPacket);
-    setNewsArchive(prev => [newsPacket, ...prev]);
+    setNewsArchive((prev) => [newsPacket, ...prev]);
+
     const existing = JSON.parse(localStorage.getItem('apex_news_archive') || '[]');
     localStorage.setItem('apex_news_archive', JSON.stringify([newsPacket, ...existing]));
+
     setTimeout(() => setNewsModal(null), 15000);
   };
 
   const showToast = (message, type = 'info') => {
     const id = Date.now();
-    setToasts(prev => [...prev, { id, message, type }]);
-    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4000);
+    setToasts((prev) => [...prev, { id, message, type }]);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 4000);
   };
 
-  const activeStock = stocks.find(s => s.ticker === selectedTicker) || stocks[0];
+  const activeStock = stocks.find((s) => s.ticker === selectedTicker) || stocks[0];
 
-  // ── Render: Secret Admin Route ─────────────────────────────────────────────
-  if (isAdminRoute) {
-    return (
-      <div class="min-h-screen bg-[#080b10] p-6">
-        <div class="max-w-5xl mx-auto">
-          {/* Distinct Admin Header — clearly NOT the user view */}
-          <div class="flex items-center justify-between mb-6 bg-[#1a0a0a] border border-rose-900/40 rounded-2xl px-5 py-3">
-            <div class="flex items-center gap-3">
-              <div class="w-9 h-9 rounded-xl bg-rose-500/20 flex items-center justify-center border border-rose-500/40 shadow-lg shadow-rose-500/10">
-                <span class="text-base">🔐</span>
-              </div>
-              <div>
-                <h1 class="text-sm font-extrabold text-rose-400 tracking-wide uppercase">IGNITE Admin Console</h1>
-                <p class="text-[10px] text-rose-900 font-mono">Restricted Access — Authorised Personnel Only</p>
-              </div>
-            </div>
-            <button
-              onClick={() => { window.location.hash = ''; window.location.href = '/'; }}
-              class="text-xs text-gray-500 hover:text-white transition-colors px-3 py-1.5 rounded-lg border border-[#232936] hover:border-rose-500/30"
-            >
-              ← Back to Exchange
-            </button>
-          </div>
-          <AdminPanel showToast={showToast} onNewsDispatched={handleNewsReceived} />
-        </div>
-        {/* Toast Notifications */}
-        <div class="fixed bottom-6 right-6 z-50 flex flex-col gap-3">
-          {toasts.map(t => (
-            <div key={t.id} class={`px-4 py-3 rounded-xl shadow-2xl text-xs font-semibold text-white ${
-              t.type === 'success' ? 'bg-emerald-500' : t.type === 'error' ? 'bg-rose-500' : 'bg-[#2962ff]'
-            }`}>{t.message}</div>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  // ── Render: Auth Screen ────────────────────────────────────────────────────
+  // RENDER ROUTING STATE MACHINE: "trader-auth"
   if (view === 'trader-auth') {
     return (
-      <div class="min-h-screen flex items-center justify-center p-4 bg-[#0b0e14]">
-        <div class="w-full max-w-sm bg-[#151922] border border-[#232936] rounded-2xl p-8 shadow-2xl">
-          {/* Logo */}
-          <div class="text-center mb-7">
-            <div class="w-12 h-12 rounded-xl bg-gradient-to-tr from-[#2962ff] to-indigo-500 flex items-center justify-center mx-auto mb-3 shadow-lg shadow-[#2962ff]/30">
-              <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+      <div class="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-[#0b0e14] via-[#151922] to-[#0b0e14]">
+        <div class="w-full max-w-md bg-[#151922] border border-[#232936] rounded-3xl p-8 shadow-2xl relative overflow-hidden">
+          <div class="absolute -top-24 -right-24 w-48 h-48 bg-[#2962ff]/20 rounded-full blur-3xl"></div>
+
+          <div class="text-center mb-8">
+            <div class="w-14 h-14 rounded-2xl bg-gradient-to-tr from-[#2962ff] to-indigo-500 flex items-center justify-center mx-auto mb-4 shadow-xl shadow-[#2962ff]/30">
+              <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
               </svg>
             </div>
-            <h1 class="text-xl font-extrabold text-white tracking-wide">IGNITE EXCHANGE</h1>
-            <p class="text-xs text-gray-500 mt-1">Virtual Stock Market Terminal</p>
+            <h1 class="text-2xl font-extrabold text-white tracking-wide">IGNITE EXCHANGE</h1>
+            <p class="text-xs text-gray-400 mt-1">Institutional Virtual Stock Market Terminal</p>
           </div>
 
-          {/* Tab Switch */}
-          <div class="flex items-center bg-[#0b0e14] rounded-xl border border-[#232936] p-1 mb-5">
-            <button onClick={() => { setAuthMode('login'); setAuthError(''); }}
-              class={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${authMode === 'login' ? 'bg-[#151922] text-white border border-[#232936]' : 'text-gray-500 hover:text-white'}`}>
+          <div class="flex items-center p-1 bg-[#0b0e14] rounded-2xl border border-[#232936] mb-6">
+            <button
+              onClick={() => { setAuthMode('login'); setAuthError(''); }}
+              class={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${
+                authMode === 'login'
+                  ? 'text-white bg-[#151922] shadow-md border border-[#232936]'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
               Sign In
             </button>
-            <button onClick={() => { setAuthMode('register'); setAuthError(''); }}
-              class={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${authMode === 'register' ? 'bg-[#151922] text-white border border-[#232936]' : 'text-gray-500 hover:text-white'}`}>
-              Register
+            <button
+              onClick={() => { setAuthMode('register'); setAuthError(''); }}
+              class={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${
+                authMode === 'register'
+                  ? 'text-white bg-[#151922] shadow-md border border-[#232936]'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              Sign Up
             </button>
           </div>
 
-          {/* Error */}
           {authError && (
-            <div class="mb-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs font-semibold">
-              ⚠ {authError}
+            <div class="mb-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs font-semibold flex items-center gap-2">
+              <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+              <span>{authError}</span>
             </div>
           )}
 
-          {/* Form */}
-          <form onSubmit={handleAuthSubmit} class="space-y-3">
+          <form onSubmit={handleAuthSubmit} class="space-y-4">
+            {authMode === 'register' && (
+              <div>
+                <label class="text-xs font-semibold text-gray-400 block mb-1.5">Username Handle</label>
+                <input
+                  type="text"
+                  required
+                  value={usernameInput}
+                  onChange={(e) => setUsernameInput(e.target.value)}
+                  placeholder="trader_pro"
+                  class="w-full bg-[#0b0e14] border border-[#232936] rounded-xl px-4 py-3 text-xs text-gray-100 placeholder-gray-500 focus:outline-none focus:border-[#2962ff] transition-colors"
+                />
+              </div>
+            )}
+
             <div>
-              <label class="text-xs font-semibold text-gray-400 block mb-1.5">Email Address</label>
-              <input type="email" required value={emailInput} onChange={e => setEmailInput(e.target.value)}
-                placeholder="trader@example.com"
-                class="w-full bg-[#0b0e14] border border-[#232936] rounded-xl px-4 py-2.5 text-xs text-gray-100 placeholder-gray-600 focus:outline-none focus:border-[#2962ff] transition-colors" />
+              <label class="text-xs font-semibold text-gray-400 block mb-1.5">Trader Email Address</label>
+              <input
+                type="email"
+                required
+                value={emailInput}
+                onChange={(e) => setEmailInput(e.target.value)}
+                placeholder="trader@domain.com"
+                class="w-full bg-[#0b0e14] border border-[#232936] rounded-xl px-4 py-3 text-xs text-gray-100 placeholder-gray-500 focus:outline-none focus:border-[#2962ff] transition-colors"
+              />
             </div>
+
             <div>
               <label class="text-xs font-semibold text-gray-400 block mb-1.5">Password</label>
-              <input type="password" required minLength={8} value={passwordInput} onChange={e => setPasswordInput(e.target.value)}
+              <input
+                type="password"
+                required
+                minLength={8}
+                value={passwordInput}
+                onChange={(e) => setPasswordInput(e.target.value)}
                 placeholder="••••••••"
-                class="w-full bg-[#0b0e14] border border-[#232936] rounded-xl px-4 py-2.5 text-xs text-gray-100 placeholder-gray-600 focus:outline-none focus:border-[#2962ff] transition-colors" />
+                class="w-full bg-[#0b0e14] border border-[#232936] rounded-xl px-4 py-3 text-xs text-gray-100 placeholder-gray-500 focus:outline-none focus:border-[#2962ff] transition-colors"
+              />
             </div>
 
             {authMode === 'register' && (
               <div class="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[11px]">
-                🎁 New accounts start with <strong>20,000 IG</strong> cash balance!
+                🎁 New trader accounts automatically receive <strong>20,000.00 IG</strong> starting cash balance!
               </div>
             )}
 
-            <button type="submit" disabled={authLoading}
-              class="w-full py-3 rounded-xl font-bold text-xs bg-gradient-to-r from-[#2962ff] to-indigo-600 text-white shadow-lg shadow-[#2962ff]/20 hover:opacity-95 transition-all mt-1">
-              {authLoading ? 'Authenticating...' : authMode === 'register' ? 'Create Account' : 'Sign In'}
+            <button
+              type="submit"
+              disabled={authLoading}
+              class="w-full py-3.5 rounded-xl font-bold text-xs bg-gradient-to-r from-[#2962ff] to-indigo-600 text-white shadow-xl shadow-[#2962ff]/20 hover:opacity-95 transition-all mt-2"
+            >
+              {authLoading ? 'Authenticating...' : authMode === 'register' ? 'Create Account & Get 20,000 IG' : 'Sign In to Terminal'}
             </button>
           </form>
+
+          {/* Utility Access to Admin Authentication Gate */}
+          <div class="mt-6 pt-4 border-t border-[#232936] text-center">
+            <button
+              onClick={() => setView('admin-panel')}
+              class="text-[11px] text-gray-500 hover:text-rose-400 transition-colors font-mono"
+            >
+              ⚡ Access Admin Identity Console
+            </button>
+          </div>
         </div>
       </div>
     );
   }
 
-  // ── Render: Main Dashboard ─────────────────────────────────────────────────
+  // RENDER MAIN APPLICATION ROUTING STATES: "dashboard" | "admin-panel"
   return (
     <div class="min-h-screen flex flex-col bg-[#0b0e14]">
+      {/* Floating News Alert */}
       <BreakingNewsModal news={newsModal} onClose={() => setNewsModal(null)} />
 
       {/* Navbar */}
-      <header class="bg-[#151922] border-b border-[#232936] px-5 py-3 sticky top-0 z-40 flex flex-wrap items-center justify-between gap-3">
-        {/* Brand */}
-        <div class="flex items-center gap-2.5">
-          <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#2962ff] to-indigo-500 flex items-center justify-center shadow-md shadow-[#2962ff]/20">
-            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-            </svg>
-          </div>
-          <div>
-            <h1 class="text-base font-extrabold tracking-wider text-white">IGNITE</h1>
-            <p class="text-[10px] text-gray-500">Virtual Exchange</p>
-          </div>
-        </div>
+      <Navbar
+        traderEmail={traderEmail}
+        cashBalance={cashBalance}
+        portfolioValue={portfolioValue}
+        isConnected={isConnected}
+        activeTab={activeTab}
+        setActiveTab={(tab) => {
+          if (tab === 'admin') {
+            setView('admin-panel');
+          } else {
+            setView('dashboard');
+            setActiveTab(tab);
+          }
+        }}
+        onLogout={handleLogout}
+      />
 
-        {/* Nav Tabs */}
-        <nav class="flex items-center gap-1 bg-[#0b0e14] p-1 rounded-xl border border-[#232936]">
-          {[['trading', '📈 Trading'], ['portfolio', '💼 Portfolio'], ['leaderboard', '🏆 Leaderboard']].map(([tab, label]) => (
-            <button key={tab} onClick={() => setActiveTab(tab)}
-              class={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${activeTab === tab ? 'bg-[#151922] text-white border border-[#232936]' : 'text-gray-400 hover:text-white'}`}>
-              {label}
-            </button>
-          ))}
-        </nav>
-
-        {/* User Info */}
-        <div class="flex items-center gap-3">
-          {/* Live Status */}
-          <div class="flex items-center gap-1.5 bg-[#0b0e14] px-3 py-1.5 rounded-full border border-[#232936]">
-            <span class={`w-2 h-2 rounded-full ${isConnected ? 'bg-emerald-500 shadow-emerald-500/50 shadow-sm' : 'bg-yellow-500 animate-pulse'}`} />
-            <span class="text-[11px] font-semibold text-gray-300">{isConnected ? 'Live' : 'Offline'}</span>
-          </div>
-
-          {/* Balances */}
-          <div class="flex items-center gap-3 bg-[#0b0e14] border border-[#232936] px-3.5 py-1.5 rounded-xl">
-            <div>
-              <div class="text-[10px] text-gray-500 uppercase tracking-wide">Cash</div>
-              <div class="text-sm font-bold text-white font-mono">{parseFloat(cashBalance).toLocaleString('en-US', { minimumFractionDigits: 2 })} <span class="text-[10px] text-emerald-400">IG</span></div>
+      {/* Main Content View Switcher */}
+      <main class="flex-1 max-w-[1920px] w-full mx-auto p-4 md:p-6">
+        {view === 'admin-panel' ? (
+          <div class="space-y-4">
+            <div class="flex items-center justify-between bg-[#151922] p-4 rounded-2xl border border-[#232936]">
+              <span class="text-xs text-gray-400 font-mono">Viewing Mode: Admin Identity Gate</span>
+              <button
+                onClick={() => setView('dashboard')}
+                class="px-3 py-1 rounded-lg bg-[#2962ff]/20 text-[#2962ff] border border-[#2962ff]/30 text-xs font-bold hover:bg-[#2962ff] hover:text-white transition-all"
+              >
+                ← Return to Trader Dashboard
+              </button>
             </div>
-            <div class="h-5 w-px bg-[#232936]" />
-            <div>
-              <div class="text-[10px] text-gray-500 uppercase tracking-wide">Net Worth</div>
-              <div class="text-sm font-bold text-emerald-400 font-mono">{(parseFloat(cashBalance) + portfolioValue).toLocaleString('en-US', { minimumFractionDigits: 2 })} <span class="text-[10px] text-gray-400">IG</span></div>
-            </div>
+            <AdminPanel
+              showToast={showToast}
+              onNewsDispatched={handleNewsReceived}
+            />
           </div>
-
-          {/* Logout */}
-          <button onClick={handleLogout} title="Sign Out"
-            class="p-2 rounded-xl bg-[#0b0e14] border border-[#232936] text-gray-400 hover:text-rose-400 hover:border-rose-500/30 transition-all">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-            </svg>
-          </button>
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <main class="flex-1 max-w-[1920px] w-full mx-auto p-4 md:p-5">
-        {activeTab === 'trading' && (
-          <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
-            {/* Left: Watchlist + News */}
-            <div class="lg:col-span-7 flex flex-col gap-5">
-              <Watchlist stocks={stocks} selectedTicker={selectedTicker} onSelectStock={setSelectedTicker} isConnected={isConnected} />
-              <NewsFeed archive={newsArchive} />
-            </div>
-
-            {/* Right: Chart + Order */}
-            <div class="lg:col-span-5 flex flex-col gap-5">
-              {/* Stock Header */}
-              <div class="bg-[#151922] border border-[#232936] rounded-2xl p-4 flex items-center justify-between">
-                <div class="flex items-center gap-3">
-                  <div class="w-10 h-10 rounded-xl bg-[#2962ff]/10 text-[#2962ff] font-black text-sm flex items-center justify-center border border-[#2962ff]/20">
-                    {activeStock?.ticker}
-                  </div>
-                  <div>
-                    <h3 class="text-sm font-bold text-white">{activeStock?.name}</h3>
-                    <p class="text-[10px] text-gray-400 font-mono">{activeStock?.ticker} / IG</p>
-                  </div>
+        ) : (
+          <>
+            {activeTab === 'trading' && (
+              <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                {/* Left Column (7 cols): Watchlist & News Archive */}
+                <div class="lg:col-span-7 flex flex-col gap-6">
+                  <Watchlist
+                    stocks={stocks}
+                    selectedTicker={selectedTicker}
+                    onSelectStock={setSelectedTicker}
+                  />
+                  <NewsFeed archive={newsArchive} />
                 </div>
-                <div class="text-right">
-                  <div class="text-lg font-bold font-mono text-white">{parseFloat(activeStock?.current_price || 0).toFixed(2)} IG</div>
-                  <div class={`text-xs font-semibold ${(activeStock?.change_percentage || 0) >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                    {(activeStock?.change_percentage || 0) >= 0 ? '▲ +' : '▼ '}{(activeStock?.change_percentage || 0).toFixed(2)}%
+
+                {/* Right Column (5 cols): Analytics & Execution */}
+                <div class="lg:col-span-5 flex flex-col gap-6">
+                  {/* Selected Stock Header */}
+                  <div class="bg-[#151922] border border-[#232936] rounded-2xl p-5 shadow-2xl flex items-center justify-between">
+                    <div class="flex items-center gap-4">
+                      <div class="w-12 h-12 rounded-xl bg-[#2962ff]/10 text-[#2962ff] font-black text-lg flex items-center justify-center border border-[#2962ff]/20">
+                        {activeStock ? activeStock.ticker : 'APEX'}
+                      </div>
+                      <div>
+                        <h3 class="text-lg font-bold text-white">{activeStock ? activeStock.name : 'Apex Dynamics Corp'}</h3>
+                        <p class="text-xs text-gray-400 font-mono">{activeStock ? activeStock.ticker : 'APEX'} / IG</p>
+                      </div>
+                    </div>
+                    <div class="text-right">
+                      <div class="text-xl font-bold font-mono text-white">
+                        {activeStock ? parseFloat(activeStock.current_price).toFixed(2) : '0.00'} IG
+                      </div>
+                      <div class={`text-xs font-semibold ${activeStock?.change_percentage >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                        {activeStock?.change_percentage >= 0 ? '+' : ''}{activeStock?.change_percentage ? activeStock.change_percentage.toFixed(2) : '0.00'}%
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Tabs Container */}
+                  <div class="flex-1 bg-[#151922] border border-[#232936] rounded-2xl p-5 shadow-2xl flex flex-col">
+                    <div class="flex items-center gap-2 p-1 bg-[#0b0e14] rounded-xl border border-[#232936] mb-5">
+                      <button
+                        onClick={() => setRightPanelTab('chart')}
+                        class={`flex-1 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+                          rightPanelTab === 'chart'
+                            ? 'text-white bg-[#151922] shadow-md border border-[#232936]'
+                            : 'text-gray-400 hover:text-white'
+                        }`}
+                      >
+                        📈 Chart & Analytics
+                      </button>
+                      <button
+                        onClick={() => setRightPanelTab('order')}
+                        class={`flex-1 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+                          rightPanelTab === 'order'
+                            ? 'text-white bg-[#151922] shadow-md border border-[#232936]'
+                            : 'text-gray-400 hover:text-white'
+                        }`}
+                      >
+                        ⚡ Execute Order
+                      </button>
+                    </div>
+
+                    {rightPanelTab === 'chart' ? (
+                      <StockChart
+                        ticker={activeStock ? activeStock.ticker : 'APEX'}
+                        currentPrice={activeStock ? activeStock.current_price : 5.0}
+                      />
+                    ) : (
+                      <OrderForm
+                        stock={activeStock}
+                        cashBalance={cashBalance}
+                        portfolio={portfolio}
+                        onTradeSuccess={handleTradeSuccess}
+                        showToast={showToast}
+                      />
+                    )}
                   </div>
                 </div>
               </div>
+            )}
 
-              {/* Chart / Order Tabs */}
-              <div class="bg-[#151922] border border-[#232936] rounded-2xl p-4 flex flex-col flex-1">
-                <div class="flex items-center gap-1 bg-[#0b0e14] p-1 rounded-xl border border-[#232936] mb-4">
-                  <button onClick={() => setRightPanelTab('chart')}
-                    class={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${rightPanelTab === 'chart' ? 'bg-[#151922] text-white border border-[#232936]' : 'text-gray-400 hover:text-white'}`}>
-                    📈 Chart
-                  </button>
-                  <button onClick={() => setRightPanelTab('order')}
-                    class={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${rightPanelTab === 'order' ? 'bg-[#151922] text-white border border-[#232936]' : 'text-gray-400 hover:text-white'}`}>
-                    ⚡ Trade
-                  </button>
-                </div>
+            {activeTab === 'portfolio' && (
+              <PortfolioLedger
+                cashBalance={cashBalance}
+                onQuickSell={handleQuickSell}
+                showToast={showToast}
+              />
+            )}
 
-                {rightPanelTab === 'chart' ? (
-                  <StockChart ticker={activeStock?.ticker || 'APEX'} currentPrice={activeStock?.current_price || 5} livePrice={activeStock?.current_price} />
-                ) : (
-                  <OrderForm stock={activeStock} cashBalance={cashBalance} portfolio={portfolio} onTradeSuccess={handleTradeSuccess} showToast={showToast} />
-                )}
-              </div>
-            </div>
-          </div>
+            {activeTab === 'leaderboard' && (
+              <Leaderboard />
+            )}
+          </>
         )}
-
-        {activeTab === 'portfolio' && (
-          <PortfolioLedger cashBalance={cashBalance} onQuickSell={(ticker) => { setSelectedTicker(ticker); setActiveTab('trading'); setRightPanelTab('order'); }} showToast={showToast} />
-        )}
-
-        {activeTab === 'leaderboard' && <Leaderboard />}
       </main>
 
-      {/* Toasts */}
-      <div class="fixed bottom-5 right-5 z-50 flex flex-col gap-2">
-        {toasts.map(t => (
-          <div key={t.id} class={`px-4 py-2.5 rounded-xl shadow-xl text-xs font-semibold text-white ${
-            t.type === 'success' ? 'bg-emerald-500' : t.type === 'error' ? 'bg-rose-500' : 'bg-[#2962ff]'
-          }`}>{t.message}</div>
+      {/* Toast Notifications */}
+      <div class="fixed bottom-6 right-6 z-50 flex flex-col gap-3">
+        {toasts.map((t) => (
+          <div
+            key={t.id}
+            class={`px-4 py-3 rounded-xl shadow-2xl text-xs font-semibold flex items-center gap-2 text-white ${
+              t.type === 'success'
+                ? 'bg-emerald-500'
+                : t.type === 'error'
+                ? 'bg-rose-500'
+                : 'bg-[#2962ff]'
+            }`}
+          >
+            {t.message}
+          </div>
         ))}
       </div>
     </div>
